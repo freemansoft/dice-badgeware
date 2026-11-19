@@ -11,3 +11,12 @@ Local modification: superpowers cross-references `superpowers:<skill>` were rewr
 `<skill>` names, since project skills are not namespaced like plugin skills.
 
 To update, re-copy `skills/` from each upstream repo and re-apply the rewrite.
+
+## Session-start hook
+
+`.claude/settings.json` registers a `SessionStart` hook (startup, `/clear`, compaction) that runs
+`.claude/hooks/run-hook.cmd session-start`. It injects `using-superpowers/SKILL.md` into the
+session so Claude checks for applicable skills before acting, matching the upstream plugin's
+behavior. `run-hook.cmd` is the upstream cross-platform (bash/Windows cmd) wrapper, unchanged;
+`session-start` is adapted to read from `.claude/skills` and emit Claude Code output only.
+Developers can opt out locally via `.claude/settings.local.json` (`"disableAllHooks": true`).
