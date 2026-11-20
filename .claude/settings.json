@@ -1,4 +1,8 @@
 {
+  "enabledPlugins": {
+    "superpowers@superpowers-marketplace": true,
+    "skill-creator@claude-plugins-official": true
+  },
   "extraKnownMarketplaces": {
     "superpowers-marketplace": {
       "source": {
@@ -7,9 +11,5 @@
       },
       "autoUpdate": true
     }
-  },
-  "enabledPlugins": {
-    "superpowers@superpowers-marketplace": true,
-    "skill-creator@claude-plugins-official": true
   }
 }

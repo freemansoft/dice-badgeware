@@ -76,6 +76,9 @@ python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
 ```
 
+Using Claude Code? Also install the project's plugins: see
+[Claude Code](#claude-code).
+
 | Task | Command |
 | --- | --- |
 | All tests (unit + simulator) | `.venv/bin/pytest` |
@@ -180,18 +183,24 @@ them from GitHub:
 | `superpowers` (brainstorming, planning, TDD, code review and more) | [obra/superpowers-marketplace](https://github.com/obra/superpowers-marketplace) |
 | `skill-creator` | Anthropic's official marketplace, `claude-plugins-official` |
 
-Open the project in Claude Code once and trust the folder; Claude Code
-then adds the Superpowers marketplace in the background. Then install
-the two plugins, once per clone:
+Set them up once per clone, from the repository folder:
 
 ```bash
+claude plugin marketplace add obra/superpowers-marketplace
+claude plugin marketplace add anthropics/claude-plugins-official
 claude plugin install superpowers@superpowers-marketplace --scope project
 claude plugin install skill-creator@claude-plugins-official --scope project
 ```
 
-and restart Claude Code (or run `/reload-plugins`). Superpowers' own
-start-up hook then loads its `using-superpowers` skill into each
-session, and its skills are named `superpowers:<skill>`.
+The two `marketplace add` lines make the plugin sources known to your
+Claude Code (a new install doesn't have either yet); they are harmless if
+you already have them. Re-running everything is safe, and none of it
+changes files in the repository. Then start Claude Code, or run
+`/reload-plugins` in a running session, and trust the folder when asked.
+Superpowers' own start-up hook loads its `using-superpowers` skill into
+each session, and its skills are named `superpowers:<skill>`.
+
+To check: `claude plugin list` shows both as enabled.
 
 Both marketplaces update themselves: Anthropic's by default, and the
 Superpowers one because `.claude/settings.json` sets `"autoUpdate": true`.
