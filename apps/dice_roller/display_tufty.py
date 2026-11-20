@@ -59,8 +59,17 @@ class TuftyDisplay:
         self.big_scale = max(1, -(-VALUE_PX // self.big.height))
         self.layouts = {n: grid_slots(WIDTH, HEIGHT, n) for n in range(2, 7)}
 
-    def needs_redraw(self, app, now):  # noqa: ARG002 - e-ink displays use app.changes
-        return True
+    # -- the display contract (called by __init__.py every frame) -------------
+
+    def begin_frame(self):
+        """Before buttons are read. Nothing to do: the Tufty's run() polls
+        the buttons and clears the screen before each update()."""
+
+    def end_frame(self, app, now):
+        """Draw the frame; the Tufty's run() pushes it to the LCD afterwards.
+        An e-ink display would instead redraw only when app.changes moves,
+        and call display.update() itself."""
+        self.draw(app, now)
 
     def draw(self, app, now):
         if app.screen == ROLL_SCREEN:

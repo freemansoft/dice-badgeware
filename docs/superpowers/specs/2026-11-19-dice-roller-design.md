@@ -201,15 +201,23 @@ buttons + ticks ──► dice_input ──► action (LEFT, RIGHT, LOCK, UNLOCK
 
 Each `display_<badge>.py` provides one class with:
 
-- `__init__(screen size)`: set the display mode, fonts and colours,
-  build the layout with `dice_layout`.
-- `draw(app, now)`: draw whichever screen `app` says is showing.
-- `needs_redraw(app, now)`: True every frame on Tufty and Blinky;
-  only on a change-counter change on Badger.
+- `__init__()`: set the display mode, fonts and colours, build the
+  layout with `dice_layout`.
+- `begin_frame()`: called by `__init__.py` before the buttons are read.
+- `end_frame(app, now)`: called after the actions are applied; draws
+  whichever screen `app` says is showing.
+
+The two hooks own every per-frame step that differs between badges.
+The Tufty's `run()` polls the buttons, clears the screen and pushes the
+frame itself, so its hooks only draw. The Badger's `run()` only calls
+`update()`, so a Badger display polls in `begin_frame` and, in
+`end_frame`, redraws only when `app.changes` has moved, then calls
+`display.update()`. (Revised after the final review: the first version
+had an unused `needs_redraw` and relied on the Tufty's loop.)
 
 `__init__.py` holds a table from `badge.model` to display class. A
-badge with no display file yet shows a one-line "not supported yet"
-message.
+badge with no display file yet gets a fallback that shows a short
+"not supported" message and pushes it to the screen once.
 
 ### What later badges would need
 

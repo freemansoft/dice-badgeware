@@ -149,9 +149,15 @@ login`). `--run <id>` and `--firmware-tag <tag>` pick specific versions.
 ### Adding a badge
 
 1. Write `apps/dice_roller/display_<model>.py` with a class that has
-   `draw(app, now)` and `needs_redraw(app, now)`. Read `display_tufty.py`
-   for what `app` provides; `app.changes` goes up on every visible
-   change, so an e-ink display (Badger) can redraw only then.
+   `begin_frame()` (called before the buttons are read) and
+   `end_frame(app, now)` (called after). These own everything about a
+   frame that differs between badges. The Tufty's `run()` loop polls the
+   buttons, clears the screen and pushes each frame itself, so its hooks
+   only draw. The Badger's `run()` does none of that, so a Badger display
+   would call `badge.poll()` in `begin_frame`, and in `end_frame` redraw
+   only when `app.changes` has moved (each e-ink refresh is a 1–2 s
+   flash), then call `display.update()`. Read `display_tufty.py` for
+   what `app` provides.
 2. Add it to `DISPLAYS` in `apps/dice_roller/__init__.py`.
 3. For the simulator: `git submodule add https://github.com/pimoroni/<model>2350 vendor/<model>2350`,
    run `python3 tools/update_sim.py --models tufty,<model>`, and add the

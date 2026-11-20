@@ -39,33 +39,48 @@ def _names(buttons):
     return {BUTTONS[b] for b in buttons if b in BUTTONS}
 
 
-display_class = DISPLAYS.get(badge.model)
+class UnsupportedDisplay:
+    """A badge with no display file yet: show a short message. Pushed to the
+    screen once, for badges whose run() loop doesn't update the display."""
 
-if display_class is None:
+    def __init__(self):
+        self.shown = False
 
-    def update():
+    def begin_frame(self):
+        pass
+
+    def end_frame(self, _app, _now):
         screen.pen = color.rgb(255, 255, 255)
-        screen.text("Dice Roller: {} not supported yet".format(badge.model), 4, 4)
+        screen.text("Dice Roller:", 1, 1)
+        screen.text("{} not".format(badge.model), 1, 12)
+        screen.text("supported", 1, 23)
+        if not self.shown:
+            display.update()
+            self.shown = True
 
-else:
-    config = dice_config.defaults()
-    State.load(dice_config.STATE_NAME, config)
-    config = dice_config.repair(config)
 
-    app = DiceApp(config, random.randint)
-    inputs = InputMapper()
-    display = display_class()
+config = dice_config.defaults()
+State.load(dice_config.STATE_NAME, config)
+config = dice_config.repair(config)
 
-    def update():
-        now = badge.ticks
-        pressed = _names(badge.pressed())
-        held = _names(badge.held())
-        for action in inputs.actions(app.screen, pressed, held, now):
-            app.apply(action, now)
-        saved = app.take_save()
-        if saved is not None:
-            State.save(dice_config.STATE_NAME, saved)
-        display.draw(app, now)
+app = DiceApp(config, random.randint)
+inputs = InputMapper()
+view = DISPLAYS.get(badge.model, UnsupportedDisplay)()
+
+
+def update():
+    # The display owns the per-frame work that differs between badges
+    # (polling, clearing, pushing the frame); see display_tufty.py.
+    view.begin_frame()
+    now = badge.ticks
+    pressed = _names(badge.pressed())
+    held = _names(badge.held())
+    for action in inputs.actions(app.screen, pressed, held, now):
+        app.apply(action, now)
+    saved = app.take_save()
+    if saved is not None:
+        State.save(dice_config.STATE_NAME, saved)
+    view.end_frame(app, now)
 
 
 run(update)
