@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dice Roller Simulator</title>
+<style>
+  :root { --bg: #f4f4f6; --fg: #202028; --muted: #5a5a66; }
+  @media (prefers-color-scheme: dark) { :root { --bg: #15151b; --fg: #ececf1; --muted: #a0a0ad; } }
+  body { font: 15px/1.5 system-ui, sans-serif; margin: 0; padding: 16px; background: var(--bg); color: var(--fg); }
+  canvas { display: block; width: 100%; max-width: 640px; aspect-ratio: 4 / 3; image-rendering: pixelated; background: #000; border-radius: 8px; }
+  p { color: var(--muted); max-width: 640px; }
+  kbd { font: 13px ui-monospace, monospace; padding: 1px 5px; border: 1px solid var(--muted); border-radius: 4px; }
+</style>
+</head>
+<body>
+<canvas id="screen" width="320" height="240"></canvas>
+<p id="status">loading...</p>
+<p>Click the page, then: <kbd>a</kbd> A, <kbd>b</kbd> B, <kbd>c</kbd> C, <kbd>↑</kbd> UP, <kbd>↓</kbd> DOWN, <kbd>h</kbd> HOME.</p>
+<script type="module">
+import { loadMicroPython } from "./micropython.mjs";
+
+const status = document.getElementById("status");
+const canvas = document.getElementById("screen");
+const ctx = canvas.getContext("2d");
+
+// Host contract (pimoroni/badgeware-wasm): the display shim blits an RGBA
+// framebuffer by address; buttons are an active-high bitmask; VBUS reads as
+// connected and the active-low RTC alarm as idle.
+globalThis.blitrgba = (addr, w, h) => {
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  const bytes = globalThis.Module.HEAPU8.subarray(addr, addr + w * h * 4);
+  ctx.putImageData(new ImageData(new Uint8ClampedArray(bytes), w, h), 0, 0);
+};
+globalThis.backlight = () => {};
+
+const BUTTON = { HOME: 0x20, A: 0x10, B: 0x08, C: 0x04, UP: 0x02, DOWN: 0x01 };
+const KEYS = {
+  "a": BUTTON.A, "b": BUTTON.B, "c": BUTTON.C,
+  "ArrowUp": BUTTON.UP, "ArrowDown": BUTTON.DOWN, "h": BUTTON.HOME,
+};
+const VBUS_DETECT = 12;
+const RTC_ALARM = 13;
+let buttons = 0;
+globalThis.sim_buttons = () => buttons;
+globalThis.sim_gpio_get = (gpio) => (gpio === VBUS_DETECT || gpio === RTC_ALARM ? 1 : null);
+addEventListener("keydown", (e) => {
+  const b = KEYS[e.key];
+  if (b !== undefined) { buttons |= b; e.preventDefault(); }
+});
+addEventListener("keyup", (e) => {
+  const b = KEYS[e.key];
+  if (b !== undefined) { buttons &= ~b; e.preventDefault(); }
+});
+
+const mp = await loadMicroPython({
+  heapsize: 8 * 1024 * 1024,
+  stdout: (line) => console.log(line),
+  stderr: (line) => console.error(line),
+});
+
+status.textContent = "loading files...";
+const manifest = await (await fetch("fs/manifest.json", { cache: "no-store" })).json();
+for (const [devicePath, local] of manifest) {
+  const bytes = new Uint8Array(await (await fetch("fs/" + local, { cache: "no-store" })).arrayBuffer());
+  mp.FS.mkdirTree(devicePath.slice(0, devicePath.lastIndexOf("/")));
+  mp.FS.writeFile(devicePath, bytes);
+}
+
+status.textContent = "running";
+try {
+  await mp.runPythonAsync(await (await fetch("boot.py", { cache: "no-store" })).text());
+  status.textContent = "stopped";
+} catch (e) {
+  status.textContent = "stopped: " + e;
+  console.error(e);
+}
+</script>
+</body>
+</html>
