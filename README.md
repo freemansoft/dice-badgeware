@@ -171,10 +171,31 @@ login`). `--run <id>` and `--firmware-tag <tag>` pick specific versions.
 
 ### Claude Code
 
-The repository carries Claude Code skills in `.claude/skills/` (the
-Superpowers set and Anthropic's skill-creator; sources and licences in
-`.claude/skills/README.md`). A start-up hook in `.claude/settings.json`
-loads the `using-superpowers` skill into each session.
+The project uses two Claude Code plugins. They are not stored in this
+repository; `.claude/settings.json` names them, and Claude Code fetches
+them from GitHub:
+
+| Plugin | From |
+|---|---|
+| `superpowers` (brainstorming, planning, TDD, code review and more) | [obra/superpowers-marketplace](https://github.com/obra/superpowers-marketplace) |
+| `skill-creator` | Anthropic's official marketplace, `claude-plugins-official` |
+
+Open the project in Claude Code once and trust the folder; Claude Code
+then adds the Superpowers marketplace in the background. Then install
+the two plugins, once per clone:
+
+```bash
+claude plugin install superpowers@superpowers-marketplace --scope project
+claude plugin install skill-creator@claude-plugins-official --scope project
+```
+
+and restart Claude Code (or run `/reload-plugins`). Superpowers' own
+start-up hook then loads its `using-superpowers` skill into each
+session, and its skills are named `superpowers:<skill>`.
+
+Both marketplaces update themselves: Anthropic's by default, and the
+Superpowers one because `.claude/settings.json` sets `"autoUpdate": true`.
+New Superpowers releases arrive without any change to this repository.
 
 ## Licence and credits
 
