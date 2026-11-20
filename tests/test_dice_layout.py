@@ -1,42 +1,48 @@
 import dice_layout
 
-
-def test_tufty_six():
-    assert dice_layout.grid_slots(320, 240, 6) == [
-        (64, 84, 40), (160, 84, 40), (256, 84, 40),
-        (64, 180, 40), (160, 180, 40), (256, 180, 40),
-    ]
+# The Tufty's dice area: below a 32 px header, left of a 56 px label column,
+# above a 28 px label bar.
+AREA = (264, 180, 0, 32)
 
 
-def test_tufty_four_is_two_by_two():
-    assert dice_layout.grid_slots(320, 240, 4) == [
-        (112, 84, 40), (208, 84, 40), (112, 180, 40), (208, 180, 40),
-    ]
+def slots(count, area=AREA):
+    w, h, left, top = area
+    return dice_layout.grid_slots(w, h, count, left, top)
 
 
-def test_tufty_five_is_three_then_two():
-    assert dice_layout.grid_slots(320, 240, 5) == [
-        (64, 84, 40), (160, 84, 40), (256, 84, 40), (112, 180, 40), (208, 180, 40),
-    ]
+def test_six_is_three_by_two():
+    assert slots(6) == [(44, 78, 37), (132, 78, 37), (220, 78, 37), (44, 166, 37), (132, 166, 37), (220, 166, 37)]
 
 
-def test_tufty_two_and_three_are_one_row():
-    assert dice_layout.grid_slots(320, 240, 2) == [(112, 132, 40), (208, 132, 40)]
-    assert dice_layout.grid_slots(320, 240, 3) == [(64, 132, 40), (160, 132, 40), (256, 132, 40)]
+def test_four_is_two_by_two():
+    assert slots(4) == [(88, 78, 37), (176, 78, 37), (88, 166, 37), (176, 166, 37)]
 
 
-def test_menu_lores_six_matches_menu():
-    assert dice_layout.grid_slots(160, 120, 6) == [
-        (32, 42, 20), (80, 42, 20), (128, 42, 20),
-        (32, 90, 20), (80, 90, 20), (128, 90, 20),
-    ]
+def test_five_is_three_then_two():
+    assert slots(5) == [(44, 78, 37), (132, 78, 37), (220, 78, 37), (88, 166, 37), (176, 166, 37)]
 
 
-def test_every_count_fits_below_header():
-    for w, h in ((320, 240), (264, 176)):
+def test_two_and_three_are_one_centred_row():
+    assert slots(2) == [(88, 122, 37), (176, 122, 37)]
+    assert slots(3) == [(44, 122, 37), (132, 122, 37), (220, 122, 37)]
+
+
+def test_spacing_is_the_menus_scaled():
+    # scale = min(264 / 144, 180 / 96) = 1.833: 48 px cells become 88 px
+    six = slots(6)
+    assert six[1][0] - six[0][0] == 88
+    assert six[3][1] - six[0][1] == 88
+
+
+def test_defaults_to_whole_screen_at_origin():
+    assert dice_layout.grid_slots(264, 180, 4) == [(88, 46, 37), (176, 46, 37), (88, 134, 37), (176, 134, 37)]
+
+
+def test_every_count_fits_in_its_area():
+    for w, h, left, top in (AREA, (264, 176, 0, 0), (200, 100, 10, 20), (39, 26, 0, 0)):
         for n in range(2, 7):
-            slots = dice_layout.grid_slots(w, h, n)
-            assert len(slots) == n
-            for cx, cy, half in slots:
-                assert cx - half >= 0 and cx + half <= w
-                assert cy - half >= 24 and cy + half <= h
+            got = dice_layout.grid_slots(w, h, n, left, top)
+            assert len(got) == n
+            for cx, cy, half in got:
+                assert left <= cx - half and cx + half <= left + w
+                assert top <= cy - half and cy + half <= top + h

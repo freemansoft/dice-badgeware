@@ -135,8 +135,8 @@ on the badge.
 | A | Left | Left |
 | B | Setup | Done |
 | C | Right | Right |
-| UP | Lock (with "hold: all") | + |
-| DOWN | Roll | − |
+| UP | Lock (with "hold: all") | More |
+| DOWN | Roll | Less |
 
 The label text lives with the button mapping in `dice_input.py`, so
 every badge uses the same words; where they go is the display's job.
@@ -144,7 +144,8 @@ Text uses the firmware's MonaSans vector font
 (`/system/assets/fonts/MonaSans-Medium.af`, anti-aliased) instead of
 scaled pixel fonts, falling back to a pixel font if it can't be loaded.
 The dice fill the area left between the header, the bottom bar and the
-right column.
+right column. Every die is the same dark red; a locked die turns
+grey. (MonaSans has no "−" glyph, so the configure labels are words.)
 
 ## Saved configuration
 

@@ -39,6 +39,18 @@ MAPS = {
     CONFIG_SCREEN: {A: LEFT, C: RIGHT, UP: INC, DOWN: DEC, B: ACCEPT},
 }
 
+# What the screen shows next to each button, on every badge. Displays
+# decide where the labels go; the words live here, beside the mapping.
+LABELS = {
+    ROLL_SCREEN: {A: "Left", B: "Setup", C: "Right", UP: "Lock", DOWN: "Roll"},
+    CONFIG_SCREEN: {A: "Left", B: "Done", C: "Right", UP: "More", DOWN: "Less"},
+}
+# A second, smaller line for buttons that also do something when held.
+HOLD_LABELS = {
+    ROLL_SCREEN: {UP: "hold: all"},
+    CONFIG_SCREEN: {},
+}
+
 
 class InputMapper:
     def __init__(self):

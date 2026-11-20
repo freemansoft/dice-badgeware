@@ -48,6 +48,7 @@ def trees(model):
     return [
         ("/frozen/badgeware", firmware / "modules" / "common" / "badgeware"),
         ("/rom/fonts", firmware / "romfs" / "fonts"),
+        ("/system/assets/fonts", firmware / "firmware" / "assets" / "fonts"),
         ("/system/apps/" + APP, ROOT / "apps" / APP),
         ("/lib", SIM / "stubs"),
     ]

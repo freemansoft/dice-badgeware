@@ -7,7 +7,7 @@
 // (hold time, default 150 ms); NAME is A, B, C, UP, DOWN or HOME; an empty
 // string means no steps. frames[0] is the latest frame SETTLE_MS after the
 // first frame; frames[i] the latest frame SETTLE_MS after step i is let go.
-// Each frame is width*height grey bytes (rounded mean of R, G, B). "log" holds
+// Each frame is width*height*3 bytes, R G B per pixel, row by row. "log" holds
 // the app's stdout/stderr lines (the firmware prints "- ERROR:" on a crash).
 
 import { readFileSync, writeFileSync } from "node:fs";
@@ -64,12 +64,14 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 globalThis.blitrgba = (addr, w, h) => {
   const heap = globalThis.Module.HEAPU8;
-  const grey = new Array(w * h);
+  const rgb = new Array(w * h * 3);
   for (let i = 0; i < w * h; i++) {
     const p = addr + i * 4;
-    grey[i] = Math.round((heap[p] + heap[p + 1] + heap[p + 2]) / 3);
+    rgb[i * 3] = heap[p];
+    rgb[i * 3 + 1] = heap[p + 1];
+    rgb[i * 3 + 2] = heap[p + 2];
   }
-  latest = grey;
+  latest = rgb;
   count += 1;
   size = { width: w, height: h };
 };

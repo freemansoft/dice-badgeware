@@ -19,7 +19,8 @@ writing one display file each (see [Adding a badge](#adding-a-badge)).
 | DOWN | Roll every unlocked die |
 | B | Open the configure screen |
 
-The header shows the total. Locked dice are dark grey and labelled `LOCK`.
+Every die is dark red; locked dice turn grey and are labelled `LOCK`.
+The header shows the total.
 
 ### Configure screen
 
@@ -28,6 +29,9 @@ The header shows the total. Locked dice are dark grey and labelled `LOCK`.
 | A / C | Move between the dice count and each die |
 | UP / DOWN | Increase / decrease what is highlighted |
 | B | Accept and go back to rolling (a fresh roll, all dice unlocked) |
+
+A label next to each button always shows what it does: A, B and C are
+labelled along the bottom of the screen, UP and DOWN down its right edge.
 
 Dice count: 2–6. Faces per die: 4–20. Values stop at the ends rather than
 wrapping. The dice are spread evenly in rows spaced like the home menu's
@@ -122,7 +126,7 @@ node sim/run_headless.mjs --model tufty --steps "B,UP,B,DOWN,UP:1200" --frames o
 ```
 
 `--steps` is a comma-separated list of buttons, each optionally with a
-hold time in milliseconds. `out.json` holds a 320×240 grey frame after
+hold time in milliseconds. `out.json` holds a 320×240 RGB frame after
 each step, plus the app's console output. `tests/test_sim.py` checks
 pixels in these frames.
 
