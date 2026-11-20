@@ -19,10 +19,12 @@ writing one display file each (see [Adding a badge](#adding-a-badge)).
 | DOWN | Roll every unlocked die |
 | B | Open the configure screen |
 
-Every die is dark red; locked dice turn grey and are labelled `LOCK`.
-The header shows the total.
+The title bar reads **Roll Baby Roll**, with the total on the right. Every
+die is dark red; locked dice turn grey and are labelled `LOCK`.
 
 ### Configure screen
+
+The title bar reads **Setup**, with the dice count on the right.
 
 | Button | Action |
 | --- | --- |

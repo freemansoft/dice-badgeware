@@ -9,7 +9,7 @@ Screen layout (the Tufty's A, B, C buttons sit below the screen and UP,
 DOWN on its right edge, so their labels go beside them):
 
     +------------------------------------+---------+
-    | header: total / dice count          |         |  0-31
+    | Roll Baby Roll / Setup    total / count |  title bar 0-31
     +------------------------------------+         |
     |                                    |  Lock   |  UP at y ~85
     |      dice area 264 x 180           |         |
@@ -19,8 +19,9 @@ DOWN on its right edge, so their labels go beside them):
     +----------------------------------------------+
         A (x 52)    B (x 153)    C (x 255)
 
-Text uses the firmware's MonaSans vector font (anti-aliased), falling
-back to a pixel font if it can't be loaded. The simulator tests
+Text uses the firmware's MonaSans vector font, with 4x anti-aliasing
+(Badgeware draws vector text with hard edges unless screen.antialias is
+set), falling back to a pixel font if it can't be loaded. The simulator tests
 (tests/test_sim.py) check the colours and positions pinned here.
 """
 
@@ -42,6 +43,9 @@ RADIUS = 12
 ROLL_ANIM_MS = 500
 
 MONA = "/system/assets/fonts/MonaSans-Medium.af"
+TITLE = "Roll Baby Roll"
+SETUP_TITLE = "Setup"
+RIGHT_EDGE = WIDTH - 10  # right-aligned title-bar items end here
 SIZE_HEADER = 20
 SIZE_LABEL = 17
 SIZE_HOLD = 11
@@ -71,6 +75,7 @@ class TuftyDisplay:
     def __init__(self):
         badge.mode(HIRES)
         badge.default_clear = _pen(BACKGROUND)
+        screen.antialias = image.X4  # smooth edges on vector text and shapes
         self.pens = {
             name: _pen(rgb)
             for name, rgb in (
@@ -165,7 +170,10 @@ class TuftyDisplay:
     def _draw_roll(self, app, now):
         dice = app.dice.dice
         self._rect(0, 0, WIDTH, HEADER_H, self.pens["roll_header"])
-        self._text("Total  {}".format(app.dice.total()), 10, 5, SIZE_HEADER, self.pens["label"])
+        self._text(TITLE, 10, 5, SIZE_HEADER, self.pens["label"])
+        total = "Total  {}".format(app.dice.total())
+        w, _ = self._measure(total, SIZE_HEADER)
+        self._text(total, RIGHT_EDGE - w, 5, SIZE_HEADER, self.pens["label"])
         animating = app.rolled_at is not None and now - app.rolled_at < ROLL_ANIM_MS
         for i, (cx, cy, half) in enumerate(self.layouts[len(dice)]):
             die = dice[i]
@@ -180,15 +188,17 @@ class TuftyDisplay:
 
     def _draw_config(self, app):
         self._rect(0, 0, WIDTH, HEADER_H, self.pens["config_header"])
+        self._text(SETUP_TITLE, 10, 5, SIZE_HEADER, self.pens["label"])
         field = "Dice  {}".format(app.count)
+        w, _ = self._measure(field, SIZE_HEADER)
+        x = RIGHT_EDGE - w
         if app.cursor == 0:
             # highlighted field: a white pill behind dark text, so the
             # highlight can never cut through the text
-            w, _ = self._measure(field, SIZE_HEADER)
-            self._rect(6, 3, w + 16, HEADER_H - 6, self.pens["highlight"], 8)
-            self._text(field, 14, 5, SIZE_HEADER, self.pens["pill_text"])
+            self._rect(x - 8, 3, w + 16, HEADER_H - 6, self.pens["highlight"], 8)
+            self._text(field, x, 5, SIZE_HEADER, self.pens["pill_text"])
         else:
-            self._text(field, 14, 5, SIZE_HEADER, self.pens["label"])
+            self._text(field, x, 5, SIZE_HEADER, self.pens["label"])
         for i, (cx, cy, half) in enumerate(self.layouts[app.count]):
             self._die(cx, cy, half, app.cursor == i + 1, self.pens["die"])
             self._centred("d{}".format(app.faces[i]), cx, cy, SIZE_FACES, self.pens["die_text"])

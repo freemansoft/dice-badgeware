@@ -147,6 +147,12 @@ The dice fill the area left between the header, the bottom bar and the
 right column. Every die is the same dark red; a locked die turns
 grey. (MonaSans has no "−" glyph, so the configure labels are words.)
 
+Title bar: the roll screen reads "Roll Baby Roll" with the total on the
+right; the configure screen reads "Setup" with the dice-count field on
+the right. Vector text and shapes are drawn with 4x anti-aliasing
+(`screen.antialias = image.X4`); Badgeware leaves it off by default,
+which made the text look rough.
+
 ## Saved configuration
 
 Saved with Badgeware's built-in `State` helper under the name

@@ -104,8 +104,32 @@ def test_b_opens_configure_and_b_returns(run):
 
 def test_count_field_highlight_is_a_pill_behind_the_text(run):
     _, on_count, on_die = run("B,C")["frames"]
-    assert min(rgb(on_count, 9, 16)) > 200     # white pill while the count is highlighted
-    assert min(rgb(on_die, 9, 16)) < 200       # gone once the highlight moves to a die
+    assert min(rgb(on_count, 309, 16)) > 200   # white pill, right of the title bar
+    assert min(rgb(on_die, 309, 16)) < 200     # gone once the highlight moves to a die
+
+
+def text_pixels(frame, x0, x1):
+    return bright_pixels(frame, x0, 4, x1, 28)
+
+
+def test_title_bar_has_title_left_and_total_or_count_right(run):
+    roll, config = run("B")["frames"]
+    for frame in (roll, config):
+        assert text_pixels(frame, 8, 120) >= 20     # "Roll Baby Roll" / "Setup"
+    assert text_pixels(roll, 220, 316) >= 20        # total, right-aligned
+    assert text_pixels(roll, 150, 210) == 0         # nothing in the middle
+
+
+def test_text_is_antialiased(run):
+    """Smooth edges: text drawn over the label bar has in-between shades,
+    not just the bar colour and the text colour."""
+    f = run("")["frames"][0]
+    x = tufty.LABEL_X["B"]
+    edges = sum(
+        1 for y in range(tufty.BAR_TOP + 2, 239) for px in range(x - 30, x + 30)
+        if 90 < min(rgb(f, px, y)) < 190
+    )
+    assert edges >= 10
 
 
 def test_up_locks_highlighted_die(run):
