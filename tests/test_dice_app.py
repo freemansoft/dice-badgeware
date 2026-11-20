@@ -1,7 +1,17 @@
 import dice_app
 import dice_config
 from dice_input import (
-    ACCEPT, CONFIG_SCREEN, CONFIGURE, DEC, INC, LEFT, LOCK, RIGHT, ROLL, ROLL_SCREEN, UNLOCK_ALL,
+    ACCEPT,
+    CONFIG_SCREEN,
+    CONFIGURE,
+    DEC,
+    INC,
+    LEFT,
+    LOCK,
+    RIGHT,
+    ROLL,
+    ROLL_SCREEN,
+    UNLOCK_ALL,
 )
 
 

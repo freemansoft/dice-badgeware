@@ -5,3 +5,4 @@ sim/dist/
 .DS_Store
 .claude/settings.local.json
 .superpowers/
+.ruff_cache/
