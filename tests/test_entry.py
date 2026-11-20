@@ -112,12 +112,17 @@ def test_display_owns_each_frame(entry):
     assert FakeDisplay.events == [("init",), ("begin",), ("end", "roll_screen", 0), ("begin",), ("end", "roll_screen", 500)]
 
 
-def test_accepting_a_change_saves_it(entry):
+def test_saves_only_when_a_change_is_accepted(entry):
     _, _, state, frame = entry("tufty")
     frame()
-    for buttons in ([B], [], [UP], [], [B], []):
+    for buttons in ([B], [], [B], []):
         frame(*buttons)
-    assert state.saved["dice_roller"] == {"count": 5, "faces": [6] * 6}
+    assert state.saved == {}
+    for buttons in ([B], [], [UP], []):
+        frame(*buttons)
+    assert state.saved == {}
+    frame(B)
+    assert state.saved == {"dice_roller": {"count": 5, "faces": [6] * 6}}
 
 
 def test_saved_config_is_loaded_and_repaired(entry):

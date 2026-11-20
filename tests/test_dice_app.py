@@ -36,19 +36,18 @@ def test_starts_on_roll_screen():
     assert a.rolled == [] and a.rolled_at is None
 
 
-def test_left_right_wrap():
-    a = make(count=4)
-    a.apply(LEFT, 1)
-    assert a.cursor == 3
-    a.apply(RIGHT, 2)
-    assert a.cursor == 0
-
-
-def test_right_crosses_rows():
+def test_left_right_step_through_every_die_and_wrap():
+    # reading order, so stepping from die 3 to die 4 crosses the rows
     a = make(count=6)
-    for t in range(3):
+    seen = []
+    for t in range(6):
         a.apply(RIGHT, t)
-    assert a.cursor == 3
+        seen.append(a.cursor)
+    assert seen == [1, 2, 3, 4, 5, 0]
+    a.apply(LEFT, 6)
+    assert a.cursor == 5
+    a.apply(LEFT, 7)
+    assert a.cursor == 4
 
 
 def test_lock_toggles_highlighted():
@@ -91,6 +90,7 @@ def test_unlock_all():
 
 def test_configure_and_clamps():
     a = make(count=6)
+    a.apply(RIGHT, 0)
     a.apply(CONFIGURE, 1)
     assert (a.screen, a.cursor) == (CONFIG_SCREEN, 0)
     a.apply(INC, 2)
@@ -120,23 +120,28 @@ def test_hidden_dice_keep_faces():
     a = make(count=4, faces=[6, 6, 6, 12, 6, 6])
     a.apply(CONFIGURE, 1)
     a.apply(DEC, 2)
-    a.apply(INC, 3)
-    assert a.faces[3] == 12 and a.count == 4
+    a.apply(ACCEPT, 3)
+    assert [d.faces for d in a.dice.dice] == [6, 6, 6]
+    assert a.take_save() == {"count": 3, "faces": [6, 6, 6, 12, 6, 6]}
+    a.apply(CONFIGURE, 4)
+    a.apply(INC, 5)
+    a.apply(ACCEPT, 6)
+    assert [d.faces for d in a.dice.dice] == [6, 6, 6, 12]
 
 
-def test_accept_after_fewer_dice_resets_highlight():
-    a = make(count=6)
-    for t in range(5):
-        a.apply(RIGHT, t)
-    assert a.cursor == 5
+def test_accept_returns_to_a_fresh_unlocked_roll():
+    a = make(count=6, v=3)
+    a.apply(LOCK, 0)
     a.apply(CONFIGURE, 10)
     a.apply(DEC, 11)
     a.apply(DEC, 12)
-    a.apply(ACCEPT, 13)
+    a.apply(RIGHT, 13)
+    a.box[0] = 5
+    a.apply(ACCEPT, 14)
     assert a.screen == ROLL_SCREEN and a.cursor == 0 and len(a.dice) == 4
-    assert a.rolled == [0, 1, 2, 3] and a.rolled_at == 13
+    assert a.rolled == [0, 1, 2, 3] and a.rolled_at == 14
+    assert values(a) == [5] * 4
     assert not any(d.locked for d in a.dice.dice)
-    a.apply(LOCK, 14)
 
 
 def test_accept_uses_new_faces():
@@ -158,6 +163,9 @@ def test_take_save():
     a.apply(INC, 4)
     a.apply(ACCEPT, 5)
     assert a.take_save() == {"count": 5, "faces": [6] * 6}
+    assert a.take_save() is None
+    a.apply(CONFIGURE, 6)
+    a.apply(ACCEPT, 7)
     assert a.take_save() is None
 
 

@@ -11,6 +11,8 @@ def slots(count, area=AREA):
 
 
 def test_six_is_three_by_two():
+    # the menu's spacing, scaled: min(264 / 144, 180 / 96) = 1.833, so its
+    # 48 px cells become 88 px and its 20 px icon half-size 37 px
     assert slots(6) == [(44, 78, 37), (132, 78, 37), (220, 78, 37), (44, 166, 37), (132, 166, 37), (220, 166, 37)]
 
 
@@ -27,14 +29,7 @@ def test_two_and_three_are_one_centred_row():
     assert slots(3) == [(44, 122, 37), (132, 122, 37), (220, 122, 37)]
 
 
-def test_spacing_is_the_menus_scaled():
-    # scale = min(264 / 144, 180 / 96) = 1.833: 48 px cells become 88 px
-    six = slots(6)
-    assert six[1][0] - six[0][0] == 88
-    assert six[3][1] - six[0][1] == 88
-
-
-def test_defaults_to_whole_screen_at_origin():
+def test_area_defaults_to_the_origin():
     assert dice_layout.grid_slots(264, 180, 4) == [(88, 46, 37), (176, 46, 37), (88, 134, 37), (176, 134, 37)]
 
 

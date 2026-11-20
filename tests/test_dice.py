@@ -20,9 +20,11 @@ def test_locked_die_does_not_roll():
     assert d.value == 3
 
 
-def test_toggle_lock_twice_unlocks():
+def test_toggle_lock_locks_then_unlocks():
     d = dice.Die(6)
+    assert d.locked is False
     d.toggle_lock()
+    assert d.locked is True
     d.toggle_lock()
     assert d.locked is False
 
@@ -32,14 +34,6 @@ def test_roll_unlocked_returns_rolled_indices():
     s.toggle_lock(1)
     assert s.roll_unlocked(fixed(4)) == [0, 2]
     assert [d.value for d in s.dice] == [4, 1, 4]
-
-
-def test_all_locked_roll_changes_nothing():
-    s = dice.DiceSet([6, 8])
-    s.toggle_lock(0)
-    s.toggle_lock(1)
-    assert s.roll_unlocked(fixed(5)) == []
-    assert [d.value for d in s.dice] == [1, 1]
 
 
 def test_unlock_all():

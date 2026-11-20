@@ -16,6 +16,7 @@ RUNS = [
     {"databaseId": 4, "headSha": "d", "headBranch": "main", "workflowName": "build", "conclusion": "success", "createdAt": "2026-09-23T00:00:00Z"},
 ]
 RELEASES = [
+    {"tagName": "v5.0.0", "isPrerelease": False, "isDraft": True, "publishedAt": "2026-10-09T00:00:00Z"},
     {"tagName": "v4.0.0-ide.1", "isPrerelease": True, "isDraft": False, "publishedAt": "2026-10-05T00:00:00Z"},
     {"tagName": "v3.1.1", "isPrerelease": False, "isDraft": False, "publishedAt": "2026-09-23T00:00:00Z"},
     {"tagName": "v3.1.0", "isPrerelease": False, "isDraft": False, "publishedAt": "2026-09-14T00:00:00Z"},
@@ -55,10 +56,10 @@ def repo(tmp_path, monkeypatch):
     return SimpleNamespace(root=tmp_path, git_calls=git_calls)
 
 
-def pin(root, run_id):
+def pin(root, run_id, firmware="v3.1.1"):
     version = {
         "wasm": {"repo": "pimoroni/badgeware-wasm", "commit": "x", "run_id": run_id, "date": "2026-09-11"},
-        "firmware": {"tufty": "v3.1.1"},
+        "firmware": {"tufty": firmware},
     }
     (root / "sim" / "wasm" / "VERSION.json").write_text(json.dumps(version))
 
@@ -73,10 +74,30 @@ def test_check_current_returns_0(repo):
     assert update_sim.main(["--check"]) == 0
 
 
-def test_check_newer_returns_1(repo, capsys):
+def test_check_newer_build_returns_1(repo, capsys):
     assert update_sim.main(["--check"]) == 1
     out = capsys.readouterr().out
     assert "run 1" in out and "run 4" in out
+
+
+def test_check_newer_firmware_returns_1(repo, capsys):
+    pin(repo.root, 4, firmware="v3.1.0")
+    assert update_sim.main(["--check"]) == 1
+    out = capsys.readouterr().out
+    assert "v3.1.0" in out and "v3.1.1" in out
+
+
+def test_without_gh_returns_2_and_changes_nothing(repo, monkeypatch):
+    def forbidden(args):
+        raise AssertionError(f"gh called: {args}")
+
+    before = snapshot(repo.root)
+    monkeypatch.setattr(update_sim, "gh_ready", lambda: False)
+    monkeypatch.setattr(update_sim, "gh_json", forbidden)
+    monkeypatch.setattr(update_sim, "gh_run", forbidden)
+    assert update_sim.main([]) == 2
+    assert snapshot(repo.root) == before
+    assert repo.git_calls == []
 
 
 def test_download_missing_files_changes_nothing(repo, monkeypatch):
@@ -88,15 +109,11 @@ def test_download_missing_files_changes_nothing(repo, monkeypatch):
 
 
 def test_update_replaces_build_and_writes_version(repo, monkeypatch):
-    def fake_download(args):
-        dest = Path(args[args.index("-D") + 1])
-        (dest / "micropython.mjs").write_text("new mjs")
-        (dest / "micropython.wasm").write_text("new wasm")
-
-    monkeypatch.setattr(update_sim, "gh_run", fake_download)
+    monkeypatch.setattr(update_sim, "gh_run", good_download)
     assert update_sim.main([]) == 0
     files = snapshot(repo.root)
     assert files["tufty/micropython.mjs"] == b"new mjs"
+    assert files["tufty/micropython.wasm"] == b"new wasm"
     version = json.loads(files["VERSION.json"])
     assert version["wasm"]["run_id"] == 4 and version["wasm"]["commit"] == "d"
     assert version["wasm"]["date"] == "2026-09-23" and version["firmware"] == {"tufty": "v3.1.1"}

@@ -63,12 +63,6 @@ def test_same_frame_order():
     assert m.actions(R, set(held), held, 1000) == ["left", "roll", "configure"]
 
 
-def test_every_button_has_a_label_on_every_screen():
-    for screen in (R, K):
-        assert set(dice_input.LABELS[screen]) == {"A", "B", "C", "UP", "DOWN"}
-        assert all(dice_input.LABELS[screen].values())
-
-
 def test_label_words():
     assert dice_input.LABELS[R] == {"A": "Left", "B": "Setup", "C": "Right", "UP": "Lock", "DOWN": "Roll"}
     assert dice_input.LABELS[K] == {"A": "Left", "B": "Done", "C": "Right", "UP": "More", "DOWN": "Less"}

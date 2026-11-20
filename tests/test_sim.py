@@ -4,6 +4,12 @@ Colours and positions come from apps/dice_roller/display_tufty.py: every
 die is dark red, locked dice grey, labels sit beside the five buttons on
 both screens, the header is dark on the roll screen and blue on the
 configure screen, and the highlighted dice-count field is a white pill.
+
+Every step costs simulator time, so the tests share three button
+sequences (CONFIG, LOCK, ROLL below); each is run once and its frames
+reused. The rules themselves are proved by the host tests; these prove
+what only the firmware can: what is drawn where, and that each of the
+five buttons reaches the app.
 """
 
 import json
@@ -20,19 +26,40 @@ pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="node not i
 
 WIDTH = 320
 
+# frames[0] is the screen after launch; frames[i] the screen after step i.
+# Into configure, highlight to die 1 and back, one more die, accept:
+# 1 configure (count highlighted), 2 die 1 highlighted, 3 count again,
+# 4 five dice, 5 roll screen with five dice.
+CONFIG = "B,C,A,UP,B"
+# 1 die 1 locked, 2 highlight on die 2, 3 after holding UP.
+LOCK = "UP,C,UP:1200"
+ROLL = "DOWN,DOWN"
+
 
 @pytest.fixture(scope="module")
 def run(tmp_path_factory):
+    """run(steps) -> the frames after each step. Each sequence boots the
+    simulator once; a crash or an error in the app's log fails the test."""
     subprocess.run([sys.executable, "sim/stage.py"], cwd=ROOT, check=True, capture_output=True)
     out_dir = tmp_path_factory.mktemp("sim")
+    results = {}
 
     def _run(steps):
-        out = out_dir / "frames.json"
-        subprocess.run(
-            ["node", "sim/run_headless.mjs", "--model", "tufty", "--steps", steps, "--frames", str(out)],
-            cwd=ROOT, check=False, capture_output=True, timeout=120,
-        )
-        return json.loads(out.read_text())
+        if steps not in results:
+            # one file per sequence: a run that dies before writing must
+            # not be read as the previous run's frames
+            out = out_dir / f"frames{len(results)}.json"
+            done = subprocess.run(
+                ["node", "sim/run_headless.mjs", "--model", "tufty", "--steps", steps, "--frames", str(out)],
+                cwd=ROOT, check=False, capture_output=True, text=True, timeout=120,
+            )
+            assert out.exists(), done.stderr
+            results[steps] = json.loads(out.read_text())
+        result = results[steps]
+        assert no_errors(result), (result["status"], result["log"])
+        assert len(result["frames"]) == 1 + len(steps.split(","))
+        assert (result["width"], result["height"]) == (WIDTH, 240)
+        return result["frames"]
 
     return _run
 
@@ -77,35 +104,30 @@ def no_errors(result):
 
 
 def test_boots_to_four_red_dice_two_by_two(run):
-    r = run("")
-    f = r["frames"][0]
-    assert no_errors(r), r["log"]
-    assert (r["width"], r["height"]) == (320, 240)
+    f = run(CONFIG)[0]
     assert all(is_red_die(rgb(f, *probe(4, i))) for i in range(4))
     assert is_background(rgb(f, *probe(6, 0)))
     assert max(rgb(f, 4, 4)) < 60
 
 
 def test_labels_beside_every_button_on_both_screens(run):
-    r = run("B")
-    roll, config = r["frames"]
-    assert labels_shown(roll)
-    assert labels_shown(config)
+    frames = run(CONFIG)
+    assert labels_shown(frames[0])
+    assert labels_shown(frames[1])
 
 
 def test_b_opens_configure_and_b_returns(run):
-    r = run("B,B")
-    _, f1, f2 = r["frames"]
-    assert no_errors(r), r["log"]
-    header = rgb(f1, 4, 4)
+    frames = run(CONFIG)
+    header = rgb(frames[1], 4, 4)
     assert header[2] > header[0] + 60          # blue configure header
-    assert max(rgb(f2, 4, 4)) < 60             # back to the dark roll header
+    assert max(rgb(frames[5], 4, 4)) < 60      # back to the dark roll header
 
 
-def test_count_field_highlight_is_a_pill_behind_the_text(run):
-    _, on_count, on_die = run("B,C")["frames"]
-    assert min(rgb(on_count, 309, 16)) > 200   # white pill, right of the title bar
-    assert min(rgb(on_die, 309, 16)) < 200     # gone once the highlight moves to a die
+def test_count_field_highlight_is_a_pill_that_c_and_a_move(run):
+    _, on_count, on_die, back_on_count = run(CONFIG)[:4]
+    assert min(rgb(on_count, 309, 16)) > 200       # white pill, right of the title bar
+    assert min(rgb(on_die, 309, 16)) < 200         # C: gone once the highlight moves to a die
+    assert min(rgb(back_on_count, 309, 16)) > 200  # A: back again
 
 
 def text_pixels(frame, x0, x1):
@@ -113,17 +135,17 @@ def text_pixels(frame, x0, x1):
 
 
 def test_title_bar_has_title_left_and_total_or_count_right(run):
-    roll, config = run("B")["frames"]
+    roll, _, config = run(CONFIG)[:3]              # config: highlight on a die, so no pill
     for frame in (roll, config):
         assert text_pixels(frame, 8, 120) >= 20     # "Roll Baby Roll" / "Setup"
-    assert text_pixels(roll, 220, 316) >= 20        # total, right-aligned
+        assert text_pixels(frame, 220, 316) >= 20   # total / dice count, right-aligned
     assert text_pixels(roll, 150, 210) == 0         # nothing in the middle
 
 
 def test_text_is_antialiased(run):
     """Smooth edges: text drawn over the label bar has in-between shades,
     not just the bar colour and the text colour."""
-    f = run("")["frames"][0]
+    f = run(CONFIG)[0]
     x = tufty.LABEL_X["B"]
     edges = sum(
         1 for y in range(tufty.BAR_TOP + 2, 239) for px in range(x - 30, x + 30)
@@ -133,25 +155,27 @@ def test_text_is_antialiased(run):
 
 
 def test_up_locks_highlighted_die(run):
-    f1 = run("UP")["frames"][1]
+    f1 = run(LOCK)[1]
     assert is_grey_die(rgb(f1, *probe(4, 0)))
     assert is_red_die(rgb(f1, *probe(4, 1)))
 
 
 def test_long_up_unlocks_all(run):
-    frames = run("UP,C,UP,UP:1200")["frames"]
-    assert is_grey_die(rgb(frames[3], *probe(4, 0)))
-    assert is_grey_die(rgb(frames[3], *probe(4, 1)))
-    assert is_red_die(rgb(frames[4], *probe(4, 0)))
-    assert is_red_die(rgb(frames[4], *probe(4, 1)))
+    # the hold is on die 2, so only "unlock all" can turn die 1 red again
+    frames = run(LOCK)
+    assert is_grey_die(rgb(frames[2], *probe(4, 0)))
+    assert is_red_die(rgb(frames[3], *probe(4, 0)))
+    assert is_red_die(rgb(frames[3], *probe(4, 1)))
 
 
 def test_configure_five_dice(run):
-    r = run("B,UP,B")
-    f = r["frames"][-1]
-    assert no_errors(r), r["log"]
+    f = run(CONFIG)[5]
     assert all(is_red_die(rgb(f, *probe(5, i))) for i in range(5))
 
 
-def test_rolling_does_not_error(run):
-    assert no_errors(run("DOWN,DOWN,DOWN"))
+def test_down_rolls_the_dice(run):
+    # Each frame is taken after the roll animation has ended. A roll that
+    # repeats all four values draws the same frame (1 in 1296), so two
+    # rolls are given the chance to show a change.
+    launch, first, second = run(ROLL)
+    assert first != launch or second != first
