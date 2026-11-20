@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use subagent-driven-development (recommended) or executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** A Badgeware dice app for the Tufty 2350 (up to six dice, 4–20 faces, lock/roll/configure, saved config), structured so Badger and Blinky displays can be added later, with a local updatable badgeware-wasm simulator for testing.
+**Goal:** A Badgeware dice app for the Tufty 2350 (two to six dice, 4–20 faces, lock/roll/configure, saved config), structured so Badger and Blinky displays can be added later, with a local updatable badgeware-wasm simulator for testing.
 
-**Architecture:** Pure-Python core files (`dice`, `dice_config`, `dice_layout`, `dice_input`, `dice_app`) with no Badgeware dependencies, tested with pytest on the host. One display file per badge (`display_tufty.py`) that only draws, chosen in `__init__.py` from `badge.model`. A local simulator (`sim/`) runs the real firmware and the unmodified app in Pimoroni's WebAssembly build, headless under Node for tests and in a browser for looking.
+**Architecture:** Pure-Python core files (`dice`, `dice_config`, `dice_layout`, `dice_input`, `dice_app`) with no Badgeware dependencies, tested with pytest on the host. One display file per badge (`display_tufty.py`) that only draws, chosen in `__init__.py` from `badge.model`. A local simulator (`sim/`) runs the real firmware and the unmodified app in Pimoroni's WebAssembly build, fetched from Pimoroni's GitHub (badgeware-wasm CI artifacts, tufty2350 release tags), headless under Node for tests and in a browser for looking.
 
 **Tech Stack:** MicroPython (Badgeware firmware v3.1.1), CPython 3.11 + pytest for host tests, ruff + mpy-cross, Node 18 for the headless simulator, `gh` CLI for simulator updates.
 
@@ -17,7 +17,7 @@
 - Core files (`dice.py`, `dice_config.py`, `dice_layout.py`, `dice_input.py`, `dice_app.py`) must not reference any Badgeware builtin (`badge`, `screen`, `BUTTON_*`, `State`, `color`, …) and must import under CPython.
 - Only `__init__.py` touches `badge.pressed/held`, `badge.model` and `State`. Only `display_*.py` draws.
 - MicroPython-compatible code: no f-string `=` specifier, no `dataclasses`, no `typing` imports, no walrus in comprehensions.
-- Values: dice 1–6 (default 4), faces 4–20 (default 6), any whole number; clamp, never wrap.
+- Values: dice 2–6 (default 4), faces 4–20 (default 6), any whole number; clamp, never wrap.
 - Saved config: `State` name `dice_roller` → `/state/dice_roller.json`, shape `{"count": int, "faces": [6 ints]}`.
 - Timings: `LONG_PRESS_MS = 800`, `STARTUP_IGNORE_MS = 400`, `ROLL_ANIM_MS = 500`.
 - Lint: `.venv/bin/ruff check --config vendor/tufty2350/ci/ruff.toml apps/dice_roller`.
@@ -103,7 +103,7 @@ def test_total_and_len():
 
 **Interfaces:**
 - Consumes: `dice.MIN_FACES`, `MAX_FACES`, `DEFAULT_FACES`, `MAX_DICE`.
-- Produces: `STATE_NAME = "dice_roller"`, `MIN_COUNT = 1`, `MAX_COUNT = 6`, `DEFAULT_COUNT = 4`, `defaults() -> dict` (a fresh `{"count": 4, "faces": [6]*6}` each call), `repair(data) -> dict` (always a new valid dict, never raises, never mutates `data`).
+- Produces: `STATE_NAME = "dice_roller"`, `MIN_COUNT = 2`, `MAX_COUNT = 6`, `DEFAULT_COUNT = 4`, `defaults() -> dict` (a fresh `{"count": 4, "faces": [6]*6}` each call), `repair(data) -> dict` (always a new valid dict, never raises, never mutates `data`).
 
 Repair rules: a value is numeric if it is `int` or `float` and not `bool`; numeric → `int(value)` (truncates) then clamp; anything else → default (count 4, faces 6). `data` not a dict → `defaults()`. `faces` not a list → `[6]*6`; shorter → pad with 6; longer → first six.
 
@@ -113,7 +113,7 @@ Repair rules: a value is numeric if it is `int` or `float` and not `bool`; numer
 def test_defaults(): assert dice_config.defaults() == {"count": 4, "faces": [6] * 6}
 def test_defaults_are_fresh(): a = dice_config.defaults(); a["faces"][0] = 9; assert dice_config.defaults()["faces"][0] == 6
 def test_valid_kept(): d = {"count": 2, "faces": [4, 20, 6, 8, 10, 12]}; assert dice_config.repair(d) == d
-def test_count_clamped(): assert [dice_config.repair({"count": c, "faces": [6]*6})["count"] for c in (0, -3, 7, 99)] == [1, 1, 6, 6]
+def test_count_clamped(): assert [dice_config.repair({"count": c, "faces": [6]*6})["count"] for c in (0, 1, -3, 7, 99)] == [2, 2, 2, 6, 6]
 def test_count_not_numeric(): assert [dice_config.repair({"count": c, "faces": [6]*6})["count"] for c in ("x", None, True, [3])] == [4, 4, 4, 4]
 def test_faces_clamped(): assert dice_config.repair({"count": 6, "faces": [2, 50, 4, 20, 3, 21]})["faces"] == [4, 20, 4, 20, 4, 20]
 def test_faces_padded_and_trimmed():
@@ -133,32 +133,45 @@ def test_input_not_mutated(): d = {"count": 0, "faces": [1]}; dice_config.repair
 
 ---
 
-### Task 3: `dice_layout.py` (slot positions for any screen)
+### Task 3: `dice_layout.py` (die positions for any screen and count)
 
 **Files:** Create `apps/dice_roller/dice_layout.py`, `tests/test_dice_layout.py`
 
 **Interfaces:**
-- Produces: `grid_slots(width: int, height: int) -> list[tuple[int, int, int]]`: six `(cx, cy, half)` tuples, row-major (slots 0–2 top row, 3–5 bottom), the home menu's 3×2 grid (160×120: centres x 32/80/128, y 42/90, squircle half-size 20) scaled to fit.
+- Produces: `grid_slots(width: int, height: int, count: int) -> list[tuple[int, int, int]]`: `count` (2–6) `(cx, cy, half)` tuples in reading order, spread evenly with the home menu's spacing (160×120 menu: columns 48 px apart, rows at y 42/90, half-size 20) scaled to fit.
 
-Formula (`s = min(width / 160, height / 120)`, `col = i % 3`, `row = i // 3`):
-`cx = round(width / 2 + (col - 1) * 48 * s)`, `cy = round(height / 2 + (row * 48 - 18) * s)`, `half = round(20 * s)`.
+Rows: `count <= 3` → one row of `count`; otherwise top row `(count + 1) // 2`, bottom row `count // 2`.
+With `s = min(width / 160, height / 120)`: `half = round(20 * s)`; a row of `k` dice has `cx = round(width / 2 + (j - (k - 1) / 2) * 48 * s)` for `j` in `0..k-1`; two rows sit at `cy = round(height / 2 - 18 * s)` and `round(height / 2 + 30 * s)`; a single row at `round(height / 2 + 6 * s)`.
 
 - [ ] **Step 1: Write the failing tests**
 
 ```python
-def test_tufty_hires():
-    assert dice_layout.grid_slots(320, 240) == [(64, 84, 40), (160, 84, 40), (256, 84, 40), (64, 180, 40), (160, 180, 40), (256, 180, 40)]
+def test_tufty_six():
+    assert dice_layout.grid_slots(320, 240, 6) == [(64, 84, 40), (160, 84, 40), (256, 84, 40), (64, 180, 40), (160, 180, 40), (256, 180, 40)]
 
-def test_menu_lores_matches_menu():
-    assert dice_layout.grid_slots(160, 120) == [(32, 42, 20), (80, 42, 20), (128, 42, 20), (32, 90, 20), (80, 90, 20), (128, 90, 20)]
+def test_tufty_four_is_two_by_two():
+    assert dice_layout.grid_slots(320, 240, 4) == [(112, 84, 40), (208, 84, 40), (112, 180, 40), (208, 180, 40)]
 
-def test_badger_fits_on_screen():
-    for cx, cy, half in dice_layout.grid_slots(264, 176):
-        assert cx - half >= 0 and cx + half <= 264 and cy - half >= 24 and cy + half <= 176
+def test_tufty_five_is_three_then_two():
+    assert dice_layout.grid_slots(320, 240, 5) == [(64, 84, 40), (160, 84, 40), (256, 84, 40), (112, 180, 40), (208, 180, 40)]
+
+def test_tufty_two_and_three_are_one_row():
+    assert dice_layout.grid_slots(320, 240, 2) == [(112, 132, 40), (208, 132, 40)]
+    assert dice_layout.grid_slots(320, 240, 3) == [(64, 132, 40), (160, 132, 40), (256, 132, 40)]
+
+def test_menu_lores_six_matches_menu():
+    assert dice_layout.grid_slots(160, 120, 6) == [(32, 42, 20), (80, 42, 20), (128, 42, 20), (32, 90, 20), (80, 90, 20), (128, 90, 20)]
+
+def test_every_count_fits_below_header():
+    for w, h in ((320, 240), (264, 176)):
+        for n in range(2, 7):
+            slots = dice_layout.grid_slots(w, h, n)
+            assert len(slots) == n
+            assert all(cx - half >= 0 and cx + half <= w and cy - half >= 24 and cy + half <= h for cx, cy, half in slots)
 ```
 
-- [ ] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** → 3 passed; ruff and mpy-cross clean.
-- [ ] **Step 5: Commit** `"Add grid layout for dice slots"`
+- [ ] **Step 2: Run** `.venv/bin/pytest tests/test_dice_layout.py -q` → FAIL. **Step 3: Implement.** **Step 4: Run** → 6 passed; ruff and mpy-cross clean.
+- [ ] **Step 5: Commit** `"Add even dice layout"`
 
 ---
 
@@ -247,7 +260,7 @@ def test_same_frame_order():
 Behaviour:
 - Init: copy count and faces; `dice = DiceSet(faces[:count])`; roll all; `rolled = []`, `rolled_at = None`; `screen = ROLL_SCREEN`; `cursor = 0`; `changes = 0`; remember `config()` as the saved snapshot.
 - Roll screen: LEFT/RIGHT move `cursor` modulo `len(dice)`; LOCK toggles `dice[cursor]`; UNLOCK_ALL unlocks all; ROLL rolls unlocked and, only if any rolled, sets `rolled`/`rolled_at = now`; CONFIGURE → config screen, `cursor = 0`.
-- Config screen: `cursor` 0 = count field, `k` ≥ 1 = die `k - 1`; LEFT/RIGHT modulo `count + 1`; INC/DEC on 0 change count clamped 1–6, on `k` change `faces[k-1]` clamped 4–20; ACCEPT: if `config()` differs from the snapshot, queue it for `take_save()` and update the snapshot; rebuild `dice` from `faces[:count]`, roll all, `rolled = list(range(count))`, `rolled_at = now`, `cursor = 0`, back to roll screen.
+- Config screen: `cursor` 0 = count field, `k` ≥ 1 = die `k - 1`; LEFT/RIGHT modulo `count + 1`; INC/DEC on 0 change count clamped 2–6, on `k` change `faces[k-1]` clamped 4–20; ACCEPT: if `config()` differs from the snapshot, queue it for `take_save()` and update the snapshot; rebuild `dice` from `faces[:count]`, roll all, `rolled = list(range(count))`, `rolled_at = now`, `cursor = 0`, back to roll screen.
 - An action that doesn't belong to the current screen does nothing. `changes` goes up by 1 for every action that changed anything visible, and not otherwise.
 
 - [ ] **Step 1: Write the failing tests** with this helper (the stub returns `box[0]`, capped at `hi`; tests change `a.box[0]` to control later rolls):
@@ -298,7 +311,7 @@ def test_configure_and_clamps():
     a = make(count=6); a.apply(CONFIGURE, 1); assert (a.screen, a.cursor) == (CONFIG_SCREEN, 0)
     a.apply(INC, 2); assert a.count == 6
     for t in range(10): a.apply(DEC, 3 + t)
-    assert a.count == 1
+    assert a.count == 2
     a.apply(RIGHT, 20); [a.apply(INC, 21 + t) for t in range(30)]; assert a.faces[0] == 20
     [a.apply(DEC, 60 + t) for t in range(30)]; assert a.faces[0] == 4
 
@@ -344,7 +357,7 @@ def test_changes_counter():
   - `display_tufty.TuftyDisplay()` — sets `badge.mode(HIRES)`; `needs_redraw(app, now) -> True`; `draw(app, now) -> None`.
   - Colours (RGB): `BACKGROUND = (10, 10, 16)`, `ROLL_HEADER = (28, 28, 40)` filling y 0–39 on the roll screen, `CONFIG_HEADER = (20, 90, 160)` filling y 0–39 on the configure screen, `PALETTE = [(255, 140, 0), (40, 120, 255), (230, 50, 60), (40, 190, 80), (240, 210, 40), (150, 80, 220)]` for die bodies by slot, `LOCKED_BODY = (50, 50, 60)`, `HIGHLIGHT = (255, 255, 255)`.
   - Die body: rounded square of half-size `half` centred on the slot, radius 10. Highlight: a `HIGHLIGHT` rounded square of half-size `half + 4` drawn behind the highlighted die. Locked: body in `LOCKED_BODY` with a small "LOCK" tag in its bottom quarter. Nothing is drawn at the probe point `(cx - half + 8, cy - half + 8)` except the body fill. Header text starts at x ≥ 10 so the header probe `(4, 4)` sees only the header fill.
-  - Slots with no die: nothing drawn (background).
+  - Positions come from `dice_layout.grid_slots(320, 240, n)` with `n = len(app.dice)` on the roll screen and `n = app.count` on the configure screen; nothing else is drawn in the dice area.
   - Roll screen: value centred in the body, at least 40 px tall (pixel font at integer scale, centred with `measure_text`); `TOTAL n` and short hints in the header. During `ROLL_ANIM_MS = 500` after `app.rolled_at`, dice in `app.rolled` show `random.randint(1, faces)` each frame instead of their value.
   - Configure screen: `DICE n` in the header (highlight box around it when `cursor == 0`), each die body labelled `d<faces>`, highlight ring on die `cursor - 1`, hints `UP/DOWN change  B done`.
 
@@ -366,78 +379,21 @@ def test_changes_counter():
 
 ---
 
-### Task 7: Local simulator
+### Task 7: Simulator fetch and update tool (from Pimoroni's GitHub)
 
-**Files:**
-- Create from `../MoodBadger2350/sim/` (read each before copying): `sim/boot.py`, `sim/index.html`, `sim/stage.py`, `sim/stubs/powman.py`, `sim/stubs/pcf85063a.py`, `sim/wasm/tufty/micropython.mjs`, `sim/wasm/tufty/micropython.wasm`
-- Create: `sim/wasm/VERSION.json`, `sim/run_headless.mjs` (rewritten), `tests/test_sim.py`
+**Files:** Create `tools/update_sim.py`, `tests/test_update_sim.py`; fetched and committed: `sim/wasm/tufty/micropython.mjs`, `sim/wasm/tufty/micropython.wasm`, `sim/wasm/VERSION.json`
 
 **Interfaces:**
-- Produces: `python3 sim/stage.py` → `sim/dist/tufty/` (+ `sim/dist/index.html`); `node sim/run_headless.mjs --model tufty --steps "B,UP:1200" --frames out.json`.
-- `out.json`: `{"status": "ok" | "<error>", "width": 320, "height": 240, "frames": [[grey bytes]...], "log": [stdout/stderr lines]}`. `frames[0]` = the latest frame 500 ms after the first frame; `frames[i]` = the latest frame 500 ms after step `i` is released. Grey = round mean of R, G, B.
-- Step syntax: comma-separated `NAME` or `NAME:ms` (hold time, default 150 ms), `NAME` ∈ A, B, C, UP, DOWN, HOME. Bitmask as MoodBadger's: HOME 0x20, A 0x10, B 0x08, C 0x04, UP 0x02, DOWN 0x01.
-- `sim/wasm/VERSION.json`: `{"wasm": {"repo": "pimoroni/badgeware-wasm", "commit": "8cc5b05a1a07a823eb68ca1952b3603fe4d769bf", "run_id": 35841227054, "date": "2026-09-23"}, "firmware": {"tufty": "v3.1.1"}}` (the build MoodBadger2350 committed; see its `sim/wasm/SOURCE.md`).
-
-Changes from MoodBadger's copies: `stage.py` `MODELS = ("tufty",)`, app tree `apps/dice_roller` → `/system/apps/dice_roller`, landing page title "Dice Roller Simulator"; `boot.py` launches `/system/apps/dice_roller`; `index.html` title and key help (`a`/`b`/`c`, ↑/↓, `h`).
-
-- [ ] **Step 1: Port the files and stage.** Run `python3 sim/stage.py` → `staged N files in sim/dist/tufty`.
-- [ ] **Step 2: Write `tests/test_sim.py`** (skip all if `node` missing; a module-scoped fixture stages once; helper `run(steps)` returns the parsed JSON; `grey(frame, x, y) = frame[y * 320 + x]`; slots from `dice_layout.grid_slots(320, 240)`; probe = `(cx - half + 8, cy - half + 8)`):
-
-```python
-def test_boots_to_four_dice():
-    r = run("")
-    f = r["frames"][0]
-    assert r["status"] == "ok" and (r["width"], r["height"]) == (320, 240)
-    assert not any("- ERROR" in line for line in r["log"])
-    assert all(grey(f, *probe(i)) > 90 for i in range(4))
-    assert all(grey(f, *probe(i)) < 30 for i in (4, 5))
-    assert grey(f, 4, 4) < 50                       # roll header
-
-def test_b_opens_configure_and_b_returns():
-    f0, f1, f2 = run("B,B")["frames"]
-    assert grey(f1, 4, 4) > 70 and grey(f2, 4, 4) < 50
-
-def test_up_locks_highlighted_die():
-    f0, f1 = run("UP")["frames"]
-    assert grey(f0, *probe(0)) > 90 and grey(f1, *probe(0)) < 70 and grey(f1, *probe(1)) > 90
-
-def test_long_up_unlocks_all():
-    frames = run("UP,C,UP,UP:1200")["frames"]
-    assert grey(frames[3], *probe(0)) < 70
-    assert grey(frames[4], *probe(0)) > 90 and grey(frames[4], *probe(1)) > 90
-
-def test_configure_five_dice():
-    f = run("B,UP,B")["frames"][-1]
-    assert grey(f, *probe(4)) > 90 and grey(f, *probe(5)) < 30
-
-def test_rolling_does_not_error():
-    r = run("DOWN,DOWN,DOWN")
-    assert r["status"] == "ok" and not any("- ERROR" in line for line in r["log"])
-```
-
-- [ ] **Step 3: Write `sim/run_headless.mjs`** to the interface above (start from MoodBadger's runner: same host functions `blitrgba`, `sim_buttons`, `sim_gpio_get`, manifest loading, 60 s timeout).
-- [ ] **Step 4: Run** `.venv/bin/pytest tests/test_sim.py -v` → 6 passed. If a pixel check fails, write that frame to PGM → PNG (as MoodBadger's `badge-verify` skill shows) and look at it before changing code or thresholds.
-- [ ] **Step 5: Look** `python3 -m http.server -d sim/dist 8000`, open `http://localhost:8000/tufty/`, try every button on both screens (Claude in Chrome if connected, otherwise ask the user).
-- [ ] **Step 6: Commit** `"Add local badgeware-wasm simulator and simulator tests"`
-
----
-
-### Task 8: Simulator update tool
-
-**Files:** Create `tools/update_sim.py`, `tests/test_update_sim.py`
-
-**Interfaces:**
-- Consumes: `sim/wasm/VERSION.json` (Task 7), `sim/stage.py`.
-- Produces (stdlib only; all `gh` calls go through one function so tests can replace it):
-  - `gh_json(args: list[str]) -> object` — runs `gh <args>` and parses stdout as JSON.
-  - `latest_build_run(runs: list[dict]) -> dict | None` — newest (`createdAt`) run with `workflowName == "build"`, `headBranch == "main"`, `conclusion == "success"`; input is `gh run list -R pimoroni/badgeware-wasm --json databaseId,headSha,headBranch,workflowName,conclusion,createdAt --limit 30`.
-  - `latest_release_tag(releases: list[dict]) -> str | None` — newest (`publishedAt`) not `isPrerelease`, not `isDraft`; input is `gh release list -R pimoroni/<model>2350 --json tagName,isPrerelease,isDraft,publishedAt`.
+- Produces (stdlib only; every `gh` call goes through `gh_json`/`gh_run` so tests can replace them; module-level `ROOT` = repo root, which tests monkeypatch):
+  - `gh_json(args: list[str]) -> object` — runs `gh <args>`, parses stdout as JSON. `gh_run(args: list[str]) -> None` — runs `gh <args>`, raises on failure.
+  - `latest_build_run(runs: list[dict]) -> dict | None` — newest (`createdAt`) run with `workflowName == "build"`, `headBranch == "main"`, `conclusion == "success"`; input from `gh run list -R pimoroni/badgeware-wasm --json databaseId,headSha,headBranch,workflowName,conclusion,createdAt --limit 30`.
+  - `latest_release_tag(releases: list[dict]) -> str | None` — newest (`publishedAt`) not `isPrerelease`, not `isDraft`; input from `gh release list -R pimoroni/<model>2350 --json tagName,isPrerelease,isDraft,publishedAt`.
   - `artifact_name(model: str) -> str` → `"badgeware-<model>2350-asyncify"`.
-  - `main(argv: list[str]) -> int`:
-    - `--check`: print pinned vs latest for the wasm run and each model's firmware; return 0 if all current, 1 if anything newer.
-    - default (update): for each model in `VERSION.json["firmware"]`: `gh run download -R pimoroni/badgeware-wasm <run> -n <artifact> -D <tmpdir>`; require `micropython.mjs` and `micropython.wasm` in it, else stop with an error and change nothing; replace `sim/wasm/<model>/`; `git -C vendor/<model>2350 fetch --tags` and `checkout <tag>`; rewrite `VERSION.json` (commit = run's `headSha`, `run_id`, `date` = `createdAt[:10]`); run `sim/stage.py`; print the next step: `.venv/bin/pytest tests/test_sim.py`.
-    - `--run ID` and `--firmware-tag TAG` override the "latest" choices.
-    - `gh` missing or not logged in: print how to fix (`gh auth login`) and return 2.
+  - `VERSION.json` shape: `{"wasm": {"repo": "pimoroni/badgeware-wasm", "commit": <headSha>, "run_id": <databaseId>, "date": <createdAt[:10]>}, "firmware": {"tufty": "<tag>"}}`.
+  - `main(argv: list[str]) -> int`, flags `--check`, `--run ID`, `--firmware-tag TAG`, `--models tufty[,badger,blinky]` (default: the models in `VERSION.json`, or `tufty` when there is none):
+    - `--check`: print pinned vs latest for the wasm run and each model's firmware tag; return 0 if all current, 1 if anything is newer (or nothing is pinned yet).
+    - Update (no `--check`): for each model, `gh run download -R pimoroni/badgeware-wasm <run> -n <artifact> -D <tmpdir>`; require `micropython.mjs` and `micropython.wasm`, else return 1 having changed nothing; replace `sim/wasm/<model>/`; `git -C vendor/<model>2350 fetch --tags` then `checkout <tag>`; write `VERSION.json`; if `sim/stage.py` exists, run it; print the next step (`.venv/bin/pytest tests/test_sim.py`, then commit `sim/wasm` and `vendor/`).
+    - `gh` missing or not logged in: print `gh auth login` advice, return 2.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -448,23 +404,80 @@ RUNS = [
   {"databaseId": 3, "headSha": "c", "headBranch": "main", "workflowName": "build", "conclusion": "failure", "createdAt": "2026-09-25T00:00:00Z"},
   {"databaseId": 4, "headSha": "d", "headBranch": "main", "workflowName": "build", "conclusion": "success", "createdAt": "2026-09-23T00:00:00Z"},
 ]
+RELEASES = [
+  {"tagName": "v4.0.0-ide.1", "isPrerelease": True, "isDraft": False, "publishedAt": "2026-10-05T00:00:00Z"},
+  {"tagName": "v3.1.1", "isPrerelease": False, "isDraft": False, "publishedAt": "2026-09-23T00:00:00Z"},
+  {"tagName": "v3.1.0", "isPrerelease": False, "isDraft": False, "publishedAt": "2026-09-14T00:00:00Z"},
+]
 def test_latest_build_run(): assert update_sim.latest_build_run(RUNS)["databaseId"] == 4
 def test_latest_build_run_none(): assert update_sim.latest_build_run([]) is None
-def test_latest_release_tag():
-    rel = [{"tagName": "v4.0.0-ide.1", "isPrerelease": True, "isDraft": False, "publishedAt": "2026-10-05T00:00:00Z"},
-           {"tagName": "v3.1.1", "isPrerelease": False, "isDraft": False, "publishedAt": "2026-09-23T00:00:00Z"},
-           {"tagName": "v3.1.0", "isPrerelease": False, "isDraft": False, "publishedAt": "2026-09-14T00:00:00Z"}]
-    assert update_sim.latest_release_tag(rel) == "v3.1.1"
+def test_latest_release_tag(): assert update_sim.latest_release_tag(RELEASES) == "v3.1.1"
 def test_artifact_name(): assert update_sim.artifact_name("tufty") == "badgeware-tufty2350-asyncify"
-def test_check_current_returns_0(monkeypatch, capsys): ...   # gh_json stubbed to return runs whose newest main success is run_id 35841227054 and release v3.1.1 → 0
-def test_check_newer_returns_1(monkeypatch, capsys): ...     # newer run → 1, and stdout names both the pinned and the new run id
-def test_download_missing_files_changes_nothing(monkeypatch, tmp_path): ...  # stub the download to produce an empty dir → non-zero exit, VERSION.json and sim/wasm untouched
 ```
 
-(For the three `main` tests, point the tool at a temp copy of `sim/wasm` via a module-level `ROOT` the tests monkeypatch.)
+Plus three `main` tests against a temp `ROOT` (with `sim/wasm/VERSION.json` and `sim/wasm/tufty/` fixtures) and stubbed `gh_json` (returns `RUNS` or `RELEASES` by the repo argument) and `gh_run`:
+- `test_check_current_returns_0`: VERSION pins run 4 and `v3.1.1` → 0.
+- `test_check_newer_returns_1`: VERSION pins run 1 → 1, and stdout contains `1` and `4`.
+- `test_download_missing_files_changes_nothing`: `gh_run` stub creates nothing → returns 1; `VERSION.json` and `sim/wasm/tufty/` unchanged.
 
-- [ ] **Step 2: Run** → FAIL. **Step 3: Implement.** **Step 4: Run** `.venv/bin/pytest tests/test_update_sim.py -q` → 7 passed; then `python3 tools/update_sim.py --check` against the real repos → prints both versions and exits 0 or 1 (report which).
-- [ ] **Step 5: Commit** `"Add simulator and firmware update tool"`
+- [ ] **Step 2: Run** `.venv/bin/pytest tests/test_update_sim.py -q` → FAIL. **Step 3: Implement.** **Step 4: Run** → 7 passed; `.venv/bin/ruff check tools tests` clean.
+- [ ] **Step 5: Fetch for real** `python3 tools/update_sim.py --check` → prints "nothing pinned" and exits 1; `python3 tools/update_sim.py` → downloads run `35841227054` (commit `8cc5b05a…`, the newest successful `main` build today; artifact expires 2026-12-22) and firmware `v3.1.1`. Expected: `sim/wasm/tufty/micropython.{mjs,wasm}` exist (~2 MB), `VERSION.json` as above; `--check` now exits 0. If the latest run differs on the day, use whatever it picks and record it in the commit message.
+- [ ] **Step 6: Commit** `git add tools/update_sim.py tests/test_update_sim.py sim/wasm && git commit -m "Add simulator update tool and fetch badgeware-wasm Tufty build"`
+
+---
+
+### Task 8: Simulator loader and simulator tests
+
+**Files:** Create `sim/stage.py`, `sim/boot.py`, `sim/stubs/powman.py`, `sim/stubs/pcf85063a.py`, `sim/index.html`, `sim/run_headless.mjs`, `tests/test_sim.py`. Reference only (don't copy wholesale): `../MoodBadger2350/sim/`, and badgeware-wasm's `host/index.html` and README for the host contract.
+
+**Interfaces:**
+- Consumes: `sim/wasm/tufty/*` and `VERSION.json` (Task 7), `vendor/tufty2350` (Task 1), the app (Task 6), `dice_layout.grid_slots`.
+- Host contract (badgeware-wasm): the page provides `blitrgba(addr, w, h)` (RGBA framebuffer in `Module.HEAPU8`), `sim_buttons()` (active-high bitmask: HOME 0x20, A 0x10, B 0x08, C 0x04, UP 0x02, DOWN 0x01), `sim_gpio_get(gpio)` (return 1 for VBUS_DETECT 12 and RTC_ALARM 13, else null).
+- `python3 sim/stage.py` → `sim/dist/tufty/` holding the wasm build, `index.html`, `boot.py` and `fs/` with `fs/manifest.json` (list of `[device path, file under fs/]`), plus `sim/dist/index.html` linking to it. Staged trees: `vendor/tufty2350/modules/common/badgeware` → `/frozen/badgeware` (rewrite `__import__(".frozen/` to `__import__("/frozen/` in staged copies only; fail if none found), `vendor/tufty2350/romfs/fonts` → `/rom/fonts`, `apps/dice_roller` → `/system/apps/dice_roller`, `sim/stubs` → `/lib`. Skip `__pycache__` and dotfiles.
+- `sim/boot.py`: add `/lib` and `/frozen` to `sys.path`, give `board` an `RTC_ALARM` pin if missing, `import badgeware`, then `launch("/system/apps/dice_roller")`.
+- `sim/stubs/powman.py`, `pcf85063a.py`: the minimum the firmware imports at start-up (wake constants, `get_wake_reason`, sleep as a no-op yield; an RTC stand-in). Write them by reading what `vendor/tufty2350/modules/common/badgeware` imports.
+- `index.html`: loads the build, writes the manifest's files into the MicroPython FS, runs `boot.py`; keys `a`/`b`/`c` = A/B/C, ↑/↓ = UP/DOWN, `h` = HOME; canvas scaled 2×.
+- `node sim/run_headless.mjs --model tufty --steps "B,UP:1200" --frames out.json` → `{"status": "ok" | "<error>", "width": 320, "height": 240, "frames": [[grey...], ...], "log": [lines]}`. `frames[0]` = latest frame 500 ms after the first; `frames[i]` = latest frame 500 ms after step `i` is released. Steps: comma-separated `NAME` or `NAME:ms` (hold, default 150 ms); empty string = no steps. Grey = round mean of R, G, B. 60 s timeout.
+
+- [ ] **Step 1: Write the loader files** and run `python3 sim/stage.py` → `staged N files in sim/dist/tufty`.
+- [ ] **Step 2: Smoke run** `node sim/run_headless.mjs --model tufty --steps "" --frames /tmp/dice.json` → status `ok`, width 320, no `- ERROR` line in `log`. Write `frames[0]` to PGM → PNG (`sips`) and look at it: 4 dice, 2+2.
+- [ ] **Step 3: Write `tests/test_sim.py`** (skip all if `node` is missing; module-scoped fixture stages once; `run(steps)` → parsed JSON; `grey(f, x, y) = f[y * 320 + x]`; `probe(n, i)` = `(cx - half + 8, cy - half + 8)` of die `i` in `grid_slots(320, 240, n)`):
+
+```python
+def test_boots_to_four_dice_two_by_two():
+    r = run("")
+    f = r["frames"][0]
+    assert r["status"] == "ok" and (r["width"], r["height"]) == (320, 240)
+    assert not any("- ERROR" in line for line in r["log"])
+    assert all(grey(f, *probe(4, i)) > 90 for i in range(4))
+    assert grey(f, *probe(6, 0)) < 30            # where a 3-wide top row would start: empty
+    assert grey(f, 4, 4) < 50                    # roll header
+
+def test_b_opens_configure_and_b_returns():
+    f0, f1, f2 = run("B,B")["frames"]
+    assert grey(f1, 4, 4) > 70 and grey(f2, 4, 4) < 50
+
+def test_up_locks_highlighted_die():
+    f0, f1 = run("UP")["frames"]
+    assert grey(f1, *probe(4, 0)) < 70 and grey(f1, *probe(4, 1)) > 90
+
+def test_long_up_unlocks_all():
+    frames = run("UP,C,UP,UP:1200")["frames"]
+    assert grey(frames[3], *probe(4, 0)) < 70 and grey(frames[3], *probe(4, 1)) < 70
+    assert grey(frames[4], *probe(4, 0)) > 90 and grey(frames[4], *probe(4, 1)) > 90
+
+def test_configure_five_dice():
+    f = run("B,UP,B")["frames"][-1]
+    assert all(grey(f, *probe(5, i)) > 90 for i in range(5))
+
+def test_rolling_does_not_error():
+    r = run("DOWN,DOWN,DOWN")
+    assert r["status"] == "ok" and not any("- ERROR" in line for line in r["log"])
+```
+
+- [ ] **Step 4: Run** `.venv/bin/pytest tests/test_sim.py -v` → 6 passed. If a pixel check fails, render that frame to PNG and look before changing code or thresholds.
+- [ ] **Step 5: Look** `python3 -m http.server -d sim/dist 8000`, open `http://localhost:8000/tufty/`, try every button on both screens (Claude in Chrome if connected, otherwise ask the user).
+- [ ] **Step 6: Commit** `"Add simulator loader and simulator tests"`
 
 ---
 
