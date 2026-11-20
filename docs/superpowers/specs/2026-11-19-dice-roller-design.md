@@ -119,6 +119,33 @@ A "number of dice" field, then one square per die showing its faces
 
 Ranges: count 2–6, faces 4–20, any whole number.
 
+### On-screen button labels (added after first build, at the user's request)
+
+Every screen shows a label next to each of the five buttons, all the
+time. On the Tufty, A, B and C sit below the screen and UP and DOWN on
+its right edge, so the screen has a label bar along the bottom (labels
+centred over A, B, C at x ≈ 52, 153, 255) and a label column on the
+right (labels level with UP at y ≈ 85 and DOWN at y ≈ 182). A and C's
+positions were confirmed on hardware by MoodBadger2350; B is midway;
+UP and DOWN are estimated from Pimoroni's product photo and need a check
+on the badge.
+
+| Button | Roll screen | Configure screen |
+|---|---|---|
+| A | Left | Left |
+| B | Setup | Done |
+| C | Right | Right |
+| UP | Lock (with "hold: all") | + |
+| DOWN | Roll | − |
+
+The label text lives with the button mapping in `dice_input.py`, so
+every badge uses the same words; where they go is the display's job.
+Text uses the firmware's MonaSans vector font
+(`/system/assets/fonts/MonaSans-Medium.af`, anti-aliased) instead of
+scaled pixel fonts, falling back to a pixel font if it can't be loaded.
+The dice fill the area left between the header, the bottom bar and the
+right column.
+
 ## Saved configuration
 
 Saved with Badgeware's built-in `State` helper under the name
