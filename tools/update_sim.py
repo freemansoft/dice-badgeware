@@ -133,6 +133,23 @@ def check(models, pinned):
     return 1 if newer else 0
 
 
+def download_builds(run, models, tmp):
+    """Download each model's build into tmp; {model: dir}, or None if a
+    build is missing a file. Raises CalledProcessError if gh fails."""
+    downloads = {}
+    for model in models:
+        dest = tmp / model
+        dest.mkdir()
+        gh_run(["run", "download", str(run["databaseId"]), "-R", WASM_REPO, "-n", artifact_name(model), "-D", str(dest)])
+        missing = [name for name in BUILD_FILES if not (dest / name).is_file()]
+        if missing:
+            print("{} from run {} is missing {}; nothing changed".format(
+                artifact_name(model), run["databaseId"], ", ".join(missing)))
+            return None
+        downloads[model] = dest
+    return downloads
+
+
 def update(models, run_id, firmware_tag):
     for model in models:
         submodule = ROOT / "vendor" / f"{model}2350"
@@ -145,18 +162,25 @@ def update(models, run_id, firmware_tag):
         print("could not find a successful build run or a firmware release")
         return 1
 
+    # Everything that can fail happens before anything in the repo changes:
+    # downloads, fetching tags, resolving them, and the submodule checkouts
+    # (which can fail on local changes). Only then are the builds swapped
+    # in and VERSION.json written.
     with tempfile.TemporaryDirectory() as tmp:
-        downloads = {}
-        for model in models:
-            dest = Path(tmp) / model
-            dest.mkdir()
-            gh_run(["run", "download", str(run["databaseId"]), "-R", WASM_REPO, "-n", artifact_name(model), "-D", str(dest)])
-            missing = [name for name in BUILD_FILES if not (dest / name).is_file()]
-            if missing:
-                print("{} from run {} is missing {}; nothing changed".format(
-                    artifact_name(model), run["databaseId"], ", ".join(missing)))
+        try:
+            downloads = download_builds(run, models, Path(tmp))
+            if downloads is None:
                 return 1
-            downloads[model] = dest
+            for model, tag in tags.items():
+                submodule = str(ROOT / "vendor" / f"{model}2350")
+                git(["-C", submodule, "fetch", "--tags", "-q"])
+                git(["-C", submodule, "rev-parse", "-q", "--verify", tag + "^{commit}"])
+            for model, tag in tags.items():
+                git(["-C", str(ROOT / "vendor" / f"{model}2350"), "checkout", "-q", tag])
+        except subprocess.CalledProcessError as e:
+            print("failed: {}; sim/wasm and VERSION.json are unchanged".format(" ".join(map(str, e.cmd))))
+            print("if a submodule moved, `git submodule update` puts it back")
+            return 1
 
         for model, dest in downloads.items():
             target = wasm_dir() / model
@@ -165,11 +189,6 @@ def update(models, run_id, firmware_tag):
             target.mkdir(parents=True)
             for name in BUILD_FILES:
                 shutil.copy2(dest / name, target / name)
-
-    for model, tag in tags.items():
-        submodule = str(ROOT / "vendor" / f"{model}2350")
-        git(["-C", submodule, "fetch", "--tags", "-q"])
-        git(["-C", submodule, "checkout", "-q", tag])
 
     write_version(run, tags)
     print("simulator: badgeware-wasm run {} ({}), firmware {}".format(

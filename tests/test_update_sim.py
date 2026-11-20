@@ -1,4 +1,5 @@
 import json
+import subprocess
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -100,3 +101,37 @@ def test_update_replaces_build_and_writes_version(repo, monkeypatch):
     assert version["wasm"]["run_id"] == 4 and version["wasm"]["commit"] == "d"
     assert version["wasm"]["date"] == "2026-09-23" and version["firmware"] == {"tufty": "v3.1.1"}
     assert ["-C", str(repo.root / "vendor" / "tufty2350"), "checkout", "-q", "v3.1.1"] in repo.git_calls
+
+
+def good_download(args):
+    dest = Path(args[args.index("-D") + 1])
+    (dest / "micropython.mjs").write_text("new mjs")
+    (dest / "micropython.wasm").write_text("new wasm")
+
+
+def failing_git(step):
+    def git(args):
+        if step in args:
+            raise subprocess.CalledProcessError(1, ["git", *args])
+    return git
+
+
+@pytest.mark.parametrize("step", ["fetch", "rev-parse", "checkout"])
+def test_git_failure_changes_nothing(repo, monkeypatch, step):
+    before = snapshot(repo.root)
+    monkeypatch.setattr(update_sim, "gh_run", good_download)
+    monkeypatch.setattr(update_sim, "git", failing_git(step))
+    assert update_sim.main([]) == 1
+    assert snapshot(repo.root) == before
+
+
+def test_download_error_changes_nothing(repo, monkeypatch):
+    before = snapshot(repo.root)
+
+    def expired(args):
+        raise subprocess.CalledProcessError(1, ["gh", *args])
+
+    monkeypatch.setattr(update_sim, "gh_run", expired)
+    assert update_sim.main([]) == 1
+    assert snapshot(repo.root) == before
+    assert repo.git_calls == []
