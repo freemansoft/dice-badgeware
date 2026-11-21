@@ -291,3 +291,5 @@ with the highlight ring just outside. A long UP press only counts while
 the app watches it: a gap of more than 250 ms between frames (the
 Badger's blocking refresh) restarts it, so a second tap during a refresh
 can't unlock every die.
+
+After a second look on the Badger: the line above the bottom labels moved up 3 px (BAR_TOP 151, labels unchanged), and Roll moved up 6 px (DOWN label y 132) to line up with the DOWN button.

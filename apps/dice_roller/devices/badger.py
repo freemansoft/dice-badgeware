@@ -19,10 +19,10 @@ edge, so their labels go beside them):
     | Roll Baby Roll / Setup   total / count |  title bar 0-21
     +--------------------------------+       |
     |                                | Lock  |  UP at y ~58
-    |     dice area 212 x 132        |       |
-    |                                | Roll  |  DOWN at y ~138
+    |     dice area 212 x 129        |       |
+    |                                | Roll  |  DOWN at y ~132
     +--------------------------------+-------+
-    |  Left        Setup        Right        |  154-175
+    |  Left        Setup        Right        |  151-175
     +----------------------------------------+
        A (x 44)    B (x 128)    C (x 212)
 
@@ -38,14 +38,14 @@ from game.layout import grid_slots
 WIDTH = 264
 HEIGHT = 176
 HEADER_H = 22
-BAR_TOP = 154
+BAR_TOP = 151
 COLUMN_LEFT = 212
 DICE_AREA = (0, HEADER_H, COLUMN_LEFT, BAR_TOP - HEADER_H)  # left, top, width, height
 LABEL_X = {A: 44, B: 128, C: 212}   # centred over the buttons below the screen
-LABEL_Y = {UP: 58, DOWN: 138}       # level with the buttons on the right edge
+LABEL_Y = {UP: 58, DOWN: 132}       # level with the buttons on the right edge
 # MonaSans sits low in its measured box, so the bottom labels centre a
 # little above the bar's middle to keep descenders off the screen edge.
-LABEL_BAR_Y = (BAR_TOP + HEIGHT) // 2 - 4
+LABEL_BAR_Y = 161
 COLUMN_X = (COLUMN_LEFT + WIDTH) // 2
 RIGHT_EDGE = WIDTH - 6  # right-aligned title-bar items end here
 

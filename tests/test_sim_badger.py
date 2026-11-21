@@ -166,3 +166,11 @@ def test_badger_labels_fit_inside_their_bars(run):
             assert top >= badger.BAR_TOP + 3 and bottom <= H - 3
         _, bottom = ink_rows(frame, badger.COLUMN_LEFT + 1, badger.LABEL_Y["DOWN"] - 16, W, badger.BAR_TOP)
         assert bottom <= badger.BAR_TOP - 3
+
+
+def test_badger_bottom_labels_clear_the_divider(run):
+    # on the real panel the bottom labels touched the line above them at a
+    # 4 px gap in the simulator; the line now sits higher
+    frame = run(SCREENS)["frames"][0]
+    tops = [ink_rows(frame, x - 30, badger.BAR_TOP + 1, x + 30, H)[0] for x in badger.LABEL_X.values()]
+    assert min(tops) - badger.BAR_TOP >= 7
