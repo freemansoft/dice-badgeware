@@ -166,8 +166,11 @@ login`). `--run <id>` and `--firmware-tag <tag>` pick specific versions.
    only draw. The Badger's `run()` does none of that, so a Badger display
    would call `badge.poll()` in `begin_frame`, and in `end_frame` redraw
    only when `app.changes` has moved (each e-ink refresh is a 1–2 s
-   flash), then call `display.update()`. Read `display_tufty.py` for
-   what `app` provides.
+   flash), then call `display.update()`. The Badger shows no roll
+   animation: rolled dice and the total go straight to their new values
+   (the flicker lives in `display_tufty.py` only; `app.rolled` and
+   `app.rolled_at` are there for displays that want one). Read
+   `display_tufty.py` for what `app` provides.
 2. Add it to `DISPLAYS` in `apps/dice_roller/__init__.py`.
 3. For the simulator: `git submodule add https://github.com/pimoroni/<model>2350 vendor/<model>2350`,
    run `python3 tools/update_sim.py --models tufty,<model>`, and add the
