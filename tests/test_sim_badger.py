@@ -20,7 +20,7 @@ W, H = badger.WIDTH, badger.HEIGHT
 
 # 0 launch, 1 die 1 locked, 2 highlight on die 2, 3 after holding UP
 # (unlock all), 4 the setup screen.
-SCREENS = "UP,C,UP:1200,B"
+SCREENS = "UP,C,UP:2500,B"
 # 1 die 1 locked, 2 the others rolled (DOWN held 2 s, so a second refresh
 # ~0.8 s later would be counted too); saved after the roll.
 ROLL = "UP,DOWN:2000"

@@ -34,12 +34,16 @@ def test_config_screen_mapping():
     assert got == ["left", "right", "inc", "dec", "accept"]
 
 
+def held_up(m, screen, t0, t1, step=20):
+    """Frames every `step` ms from t0 up to t1 with UP held, as a badge
+    polls; the actions they produced, by time."""
+    return {t: a for t in range(t0, t1, step) if (a := m.actions(screen, set(), {"UP"}, t))}
+
+
 def test_long_up_fires_once():
     m = started()
     assert m.actions(R, {"UP"}, {"UP"}, 1000) == ["lock"]
-    assert m.actions(R, set(), {"UP"}, 1799) == []
-    assert m.actions(R, set(), {"UP"}, 1800) == ["unlock_all"]
-    assert m.actions(R, set(), {"UP"}, 2600) == []
+    assert held_up(m, R, 1020, 2600) == {1800: ["unlock_all"]}
 
 
 def test_release_restarts_long_press():
@@ -47,14 +51,22 @@ def test_release_restarts_long_press():
     m.actions(R, {"UP"}, {"UP"}, 1000)
     m.actions(R, set(), set(), 1300)
     m.actions(R, {"UP"}, {"UP"}, 1400)
-    assert m.actions(R, set(), {"UP"}, 2100) == []
-    assert m.actions(R, set(), {"UP"}, 2200) == ["unlock_all"]
+    assert held_up(m, R, 1420, 2400) == {2200: ["unlock_all"]}
+
+
+def test_a_hold_counts_only_while_watched():
+    # On e-ink the lock starts a ~1 s blocking refresh, so the next frame
+    # comes a second later with UP down again. That proves nothing: UP may
+    # have been tapped a second time. The hold restarts from that frame.
+    m = started()
+    assert m.actions(R, {"UP"}, {"UP"}, 1000) == ["lock"]
+    assert held_up(m, R, 2000, 3000) == {2800: ["unlock_all"]}
 
 
 def test_no_unlock_all_on_config_screen():
     m = started()
     m.actions(K, {"UP"}, {"UP"}, 1000)
-    assert m.actions(K, set(), {"UP"}, 2000) == []
+    assert held_up(m, K, 1020, 2600) == {}
 
 
 def test_same_frame_order():
