@@ -1,11 +1,13 @@
 # Dice Roller for Badgeware
 
 A dice app for Pimoroni's [Tufty 2350](https://shop.pimoroni.com/products/tufty-2350)
-badge (Badgeware firmware). Roll two to six dice, each with 4 to 20 faces,
-lock the ones you want to keep, and reroll the rest, Yahtzee-style.
+and Badger 2350 badges (Badgeware firmware). Roll two to six dice, each
+with 4 to 20 faces, lock the ones you want to keep, and reroll the rest,
+Yahtzee-style.
 
-It is built so the Badger 2350 and Blinky 2350 can be added later by
-writing one display file each (see [Adding a badge](#adding-a-badge)).
+The game is the same on every badge; only the drawing differs, one file
+per badge, so the Blinky 2350 can be added later (see
+[Adding a badge](#adding-a-badge)).
 
 ## Buttons
 
@@ -21,7 +23,9 @@ writing one display file each (see [Adding a badge](#adding-a-badge)).
 
 The title bar reads **Roll Baby Roll**, with the total on the right; while
 the dice flicker after a roll, the total flickers with them. Every
-die is dark red; locked dice turn grey and are labelled `LOCK`.
+die is dark red; locked dice turn grey and are labelled `LOCK`. On the
+Badger's black-and-white screen dice are white, and a locked die sits in
+a grey box.
 
 ### Configure screen
 
@@ -44,23 +48,38 @@ HOME always returns to the Badgeware menu.
 
 ## Saved setup
 
-The configuration is saved when you accept it, in `/state/dice_roller.json`
-on the badge:
+The setup and the last roll are saved in `/state/dice_roller.json` on the
+badge, on every badge, after every roll, every lock or unlock, and every
+time you press Done on the Setup screen:
 
 ```json
-{ "count": 4, "faces": [6, 6, 6, 6, 6, 6] }
+{ "count": 4, "faces": [6, 6, 6, 6, 6, 6],
+  "values": [3, 5, 1, 6, 1, 1], "locked": [false, true, false, false, false, false] }
 ```
 
-`faces` holds all six dice, so lowering the count and raising it again
-brings dice back as they were. The first launch uses 4 six-sided dice. A
-hand-edited or damaged file is repaired on load (values pulled into range,
-anything unreadable replaced by the defaults). Rolls and locks are not
-saved.
+When the app starts (or the Badger wakes from sleep) it shows those dice
+again, locks included, exactly as they were on screen, instead of rolling
+fresh. The first launch uses 4
+six-sided dice. Each list covers all six dice, so lowering the count and
+raising it again brings dice back as they were. A hand-edited or damaged
+file is repaired on load (values pulled into range, anything unreadable
+replaced by the defaults); an older file without `values` keeps its setup
+and starts with a fresh roll.
+
+On a restart, HOME or sleep these are not kept:
+
+- changes on the Setup screen before you press Done (the app comes back
+  on the roll screen with the setup as it was at the last Done);
+- where the highlight was (it starts on the first die).
+
+The press that starts the app or wakes the badge only does that: it
+isn't also taken as Roll, Lock or anything else, since it was meant for
+whatever screen you were looking at before.
 
 ## Install
 
-1. Connect the Tufty with a USB-C data cable and **double-tap RESET** on
-   the back. It mounts as a drive named `TUFTY`.
+1. Connect the badge with a USB-C data cable and **double-tap RESET** on
+   the back. It mounts as a drive named `TUFTY` or `BADGER`.
 2. Run `python3 tools/install.py`. It finds the drive, copies
    `apps/dice_roller/` into its `apps/` folder, and on macOS and Linux
    ejects it. (Or copy the folder by hand, then eject.)
@@ -69,10 +88,23 @@ saved.
 Always eject before pressing RESET or unplugging, or files on the badge
 can be cut short.
 
+### Badger notes
+
+- There is no roll animation: each change is one full e-ink refresh of
+  about a second, straight to the final dice and total.
+- Presses made while the screen refreshes are dropped (as in Pimoroni's
+  own Badger apps): press, wait for the screen, press again.
+- To unlock all dice, hold UP until the screen has changed twice (the
+  first refresh shows the single lock).
+- On battery the badge sleeps after 30 seconds without a press. Any
+  button wakes it where you left off, locks included (see
+  [Saved setup](#saved-setup)); that press only wakes it, so press again
+  to roll.
+
 ## Development
 
 ```sh
-git submodule update --init          # vendor/tufty2350: Pimoroni's firmware, pinned to a release
+git submodule update --init          # vendor/: Pimoroni's Tufty and Badger firmware, pinned to a release
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
 ```
@@ -85,41 +117,53 @@ Using Claude Code? Also install the project's plugins: see
 | All tests (unit + simulator) | `.venv/bin/pytest` |
 | Lint the app with Pimoroni's rules | `.venv/bin/ruff check --config vendor/tufty2350/ci/ruff.toml apps/dice_roller` |
 | Lint tools and tests | `.venv/bin/ruff check tools tests` |
-| Check MicroPython syntax | `for f in apps/dice_roller/*.py; do .venv/bin/python -m mpy_cross -o /dev/null "$f"; done` |
+| Check MicroPython syntax | `find apps/dice_roller -name '*.py' -exec .venv/bin/python -m mpy_cross -o /dev/null {} \;` |
 | Regenerate the icon | `python3 tools/make_icon.py` |
 
 The simulator tests need Node (18 or later) and are skipped without it.
 
 ### Project layout
 
+The app is split by concern: the game (the same everywhere), saving, and
+the badge-specific code, each in its own folder. `__init__.py` only
+connects them.
+
 ```
 apps/dice_roller/        the app (copied to the badge)
-  __init__.py            entry: picks the display from badge.model, buttons, saving
-  dice.py                Die and DiceSet                      (plain Python)
-  dice_config.py         saved-setup defaults and repair      (plain Python)
-  dice_app.py            the two screens and their state      (plain Python)
-  dice_input.py          buttons -> actions, long press       (plain Python)
-  dice_layout.py         where dice go on any screen size     (plain Python)
-  display_tufty.py       drawing on the Tufty (the only Tufty-specific file)
+  __init__.py            entry: loads the saved record, picks the display, runs the loop
+  game/                  the rules and screens (plain Python, every badge)
+    dice.py              Die and DiceSet, faces and dice-count limits
+    app.py               the two screens, the highlight and the dice; says when to save
+    controls.py          buttons -> actions, long press, button labels
+    layout.py            where dice go on any screen size
+  saving/                the saved record
+    record.py            what is saved: defaults, repair, snapshot (plain Python)
+    store.py             reading and writing it with Badgeware's State
+  devices/               everything badge-specific
+    __init__.py          display_for(badge.model)
+    buttons.py           badge buttons -> game names; was it woken by a button?
+    tufty.py             Tufty 2350 display (colour, roll animation)
+    badger.py            Badger 2350 display (e-ink, four greys, sleep)
+    unsupported.py       message for a badge with no display yet
   icon.png               24x24 menu icon (tools/make_icon.py)
 sim/                     local simulator (below)
-tests/                   pytest: every plain-Python file, plus the simulator
+tests/                   pytest: one file per module, plus the simulator
 tools/install.py         copy the app to the badge's USB drive
 tools/make_icon.py       regenerate icon.png
 tools/update_sim.py      check for and pull newer simulator builds and firmware
-vendor/tufty2350         Pimoroni's Tufty firmware (git submodule)
-docs/superpowers/        design and implementation plan
+vendor/                  Pimoroni's Tufty and Badger firmware (git submodules)
+docs/superpowers/        designs and implementation plans
 ```
 
 ### Simulator
 
-`sim/` runs the real Tufty firmware Python and the unmodified app inside
-Pimoroni's WebAssembly MicroPython build from
+`sim/` runs the real Tufty and Badger firmware Python and the unmodified
+app inside Pimoroni's WebAssembly MicroPython builds from
 [pimoroni/badgeware-wasm](https://github.com/pimoroni/badgeware-wasm).
 
 ```sh
 python3 sim/stage.py                       # builds sim/dist/ (not committed)
-python3 -m http.server -d sim/dist 8000    # then open http://localhost:8000/tufty/
+python3 -m http.server -d sim/dist 8000    # then open http://localhost:8000/tufty/ or /badger/
 ```
 
 Click the page, then use `a`, `b`, `c` for A, B, C, the arrow keys for
@@ -129,15 +173,19 @@ Headless, for tests and quick checks:
 
 ```sh
 node sim/run_headless.mjs --model tufty --steps "B,UP,B,DOWN,UP:1200" --frames out.json
+node sim/run_headless.mjs --model badger --steps "UP,DOWN" --frames out.json --state saved.json
 ```
 
 `--steps` is a comma-separated list of buttons, each optionally with a
-hold time in milliseconds. `out.json` holds a 320×240 RGB frame after
-each step, plus the app's console output. `tests/test_sim.py` checks
-pixels in these frames.
+hold time in milliseconds. `out.json` holds an RGB frame after each step
+(320×240 Tufty, 264×176 Badger), the number of screen refreshes per
+step, the saved record at the end, and the app's console output.
+`--state` starts the app from a saved record, as after a restart.
+`tests/test_sim.py` and `tests/test_sim_badger.py` check pixels in these
+frames.
 
-The simulator doesn't model sleep, battery power or the real screen's
-colours, so check those on a badge.
+The simulator doesn't model sleep, battery power, the e-ink refresh time
+or the real screen's colours, so check those on a badge.
 
 ### Updating the simulator
 
@@ -153,28 +201,32 @@ python3 tools/update_sim.py           # download the newest build, move the firm
 git add sim/wasm vendor && git commit -m "Update simulator to ..."
 ```
 
+Name every model when updating (`--models tufty,badger`); a model left out
+is dropped from `VERSION.json`.
+
 It needs the [GitHub CLI](https://cli.github.com), logged in (`gh auth
 login`). `--run <id>` and `--firmware-tag <tag>` pick specific versions.
 
 ### Adding a badge
 
-1. Write `apps/dice_roller/display_<model>.py` with a class that has
+The Tufty and Badger are done; the Blinky 2350 is next.
+
+1. Write `apps/dice_roller/devices/<model>.py` with a class that has
    `begin_frame()` (called before the buttons are read) and
-   `end_frame(app, now)` (called after). These own everything about a
-   frame that differs between badges. The Tufty's `run()` loop polls the
-   buttons, clears the screen and pushes each frame itself, so its hooks
-   only draw. The Badger's `run()` does none of that, so a Badger display
-   would call `badge.poll()` in `begin_frame`, and in `end_frame` redraw
-   only when `app.changes` has moved (each e-ink refresh is a 1–2 s
-   flash), then call `display.update()`. The Badger shows no roll
-   animation: rolled dice and the total go straight to their new values
-   (the flicker lives in `display_tufty.py` only; `app.rolled` and
-   `app.rolled_at` are there for displays that want one). Read
-   `display_tufty.py` for what `app` provides.
-2. Add it to `DISPLAYS` in `apps/dice_roller/__init__.py`.
+   `end_frame(app, now)` (called after the actions are applied). These
+   own everything about a frame that differs between badges:
+   - The Tufty's `run()` loop polls the buttons, clears the screen and
+     pushes each frame itself, so `tufty.py` only draws (and animates
+     rolls with `app.rolled` and `app.rolled_at`).
+   - The Badger's `run()` does none of that, so `badger.py` refreshes
+     only when `app.changes` has moved, then waits for the next press.
+
+   Read `tufty.py` for what `app` provides.
+2. Add it to `display_for()` in `apps/dice_roller/devices/__init__.py`.
 3. For the simulator: `git submodule add https://github.com/pimoroni/<model>2350 vendor/<model>2350`,
-   run `python3 tools/update_sim.py --models tufty,<model>`, and add the
-   model to `MODELS` in `sim/stage.py` and `sim/run_headless.mjs`.
+   run `python3 tools/update_sim.py --models tufty,badger,<model>`, and add
+   the model to `MODELS` in `sim/stage.py` and to `MODELS` and `SETTLE` in
+   `sim/run_headless.mjs`.
 
 ### Claude Code
 

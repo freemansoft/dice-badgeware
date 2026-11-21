@@ -1,6 +1,5 @@
-import dice_app
-import dice_config
-from dice_input import (
+from game.app import DiceApp
+from game.controls import (
     ACCEPT,
     CONFIG_SCREEN,
     CONFIGURE,
@@ -13,12 +12,13 @@ from dice_input import (
     ROLL_SCREEN,
     UNLOCK_ALL,
 )
+from saving import record
 
 
 def make(count=4, faces=None, v=3):
     box = [v]
-    a = dice_app.DiceApp(
-        dice_config.repair({"count": count, "faces": faces or [6] * 6}),
+    a = DiceApp(
+        record.repair({"count": count, "faces": faces or [6] * 6}),
         lambda lo, hi: min(box[0], hi),
     )
     a.box = box
@@ -68,15 +68,17 @@ def test_roll_only_unlocked():
     assert values(a) == [3, 5, 5]
 
 
-def test_all_locked_roll_changes_nothing():
+def test_all_locked_roll_changes_nothing_and_saves_nothing():
     a = make(count=2)
     a.apply(LOCK, 1)
     a.apply(RIGHT, 2)
     a.apply(LOCK, 3)
+    a.take_save_point()  # the locks themselves were saved
     before = (a.changes, a.rolled_at, values(a))
     a.box[0] = 6
     a.apply(ROLL, 500)
     assert (a.changes, a.rolled_at, values(a)) == before
+    assert not a.take_save_point()
 
 
 def test_unlock_all():
@@ -122,7 +124,7 @@ def test_hidden_dice_keep_faces():
     a.apply(DEC, 2)
     a.apply(ACCEPT, 3)
     assert [d.faces for d in a.dice.dice] == [6, 6, 6]
-    assert a.take_save() == {"count": 3, "faces": [6, 6, 6, 12, 6, 6]}
+    assert a.faces == [6, 6, 6, 12, 6, 6]
     a.apply(CONFIGURE, 4)
     a.apply(INC, 5)
     a.apply(ACCEPT, 6)
@@ -153,26 +155,78 @@ def test_accept_uses_new_faces():
     assert [d.faces for d in a.dice.dice] == [7, 6]
 
 
-def test_take_save():
-    a = make(count=4)
-    assert a.take_save() is None
-    a.apply(CONFIGURE, 1)
-    a.apply(ACCEPT, 2)
-    assert a.take_save() is None
-    a.apply(CONFIGURE, 3)
-    a.apply(INC, 4)
-    a.apply(ACCEPT, 5)
-    assert a.take_save() == {"count": 5, "faces": [6] * 6}
-    assert a.take_save() is None
-    a.apply(CONFIGURE, 6)
-    a.apply(ACCEPT, 7)
-    assert a.take_save() is None
+def never(lo, hi):
+    raise AssertionError("rolled")
 
 
-def test_changes_counter():
+def saved_roll(count=3, values=(2, 5, 4, 1, 1, 1), locked=(False, True) + (False,) * 4):
+    return record.repair({"count": count, "faces": [6] * 6,
+                          "values": list(values), "locked": list(locked)})
+
+
+def test_restores_saved_roll_without_rolling():
+    a = DiceApp(saved_roll(), never)
+    assert values(a) == [2, 5, 4]
+    assert [d.locked for d in a.dice.dice] == [False, True, False]
+    assert a.rolled == [] and a.rolled_at is None
+    assert a.screen == ROLL_SCREEN and a.cursor == 0
+
+
+def test_save_points_are_rolls_and_accepts_once_each():
+    a = make(count=3)
+    assert not a.take_save_point()  # the launch roll isn't one
+    a.apply(ROLL, 1)
+    assert a.take_save_point()
+    assert not a.take_save_point()
+    a.apply(CONFIGURE, 2)
+    a.apply(INC, 3)
+    assert not a.take_save_point()  # setup edits wait for Done
+    a.apply(ACCEPT, 4)
+    assert a.take_save_point()
+
+
+def test_moves_are_not_save_points():
     a = make()
-    c = a.changes
-    a.apply(INC, 1)
-    assert a.changes == c
-    a.apply(RIGHT, 2)
-    assert a.changes == c + 1
+    for action in (RIGHT, LEFT, RIGHT):
+        a.apply(action, 0)
+    assert not a.take_save_point()
+
+
+def test_locks_and_unlocks_are_save_points():
+    # so a badge that sleeps, or is restarted, comes back with the locks
+    # it showed, not those of the last roll
+    a = make()
+    a.apply(LOCK, 0)
+    assert a.take_save_point()
+    a.apply(LOCK, 0)  # unlock
+    assert a.take_save_point()
+    a.apply(LOCK, 0)
+    a.take_save_point()
+    a.apply(UNLOCK_ALL, 0)
+    assert a.take_save_point()
+
+
+def test_unlock_all_with_nothing_locked_changes_nothing():
+    # no save, and no e-ink refresh on the Badger
+    a = make()
+    changes = a.changes
+    a.apply(UNLOCK_ALL, 0)
+    assert not a.take_save_point() and a.changes == changes
+
+
+def test_changes_moves_once_per_visible_change():
+    # The Badger redraws only when `changes` moves, so every action that
+    # changes the screen must move it, on both screens, and nothing else may.
+    a = make(count=2)
+    steps = [
+        (RIGHT, 1), (LEFT, 1), (LOCK, 1), (UNLOCK_ALL, 1), (ROLL, 1),
+        (INC, 0), (ACCEPT, 0),            # not roll-screen actions
+        (CONFIGURE, 1),
+        (RIGHT, 1), (INC, 1), (DEC, 1), (LEFT, 1),
+        (ROLL, 0), (LOCK, 0),             # not configure-screen actions
+        (ACCEPT, 1),
+    ]
+    for t, (action, moves) in enumerate(steps):
+        before = a.changes
+        a.apply(action, t)
+        assert a.changes == before + moves, (t, action)

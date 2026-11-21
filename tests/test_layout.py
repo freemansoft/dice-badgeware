@@ -1,4 +1,4 @@
-import dice_layout
+from game import layout
 
 # The Tufty's dice area: below a 32 px header, left of a 56 px label column,
 # above a 28 px label bar.
@@ -7,7 +7,7 @@ AREA = (264, 180, 0, 32)
 
 def slots(count, area=AREA):
     w, h, left, top = area
-    return dice_layout.grid_slots(w, h, count, left, top)
+    return layout.grid_slots(w, h, count, left, top)
 
 
 def test_six_is_three_by_two():
@@ -30,13 +30,13 @@ def test_two_and_three_are_one_centred_row():
 
 
 def test_area_defaults_to_the_origin():
-    assert dice_layout.grid_slots(264, 180, 4) == [(88, 46, 37), (176, 46, 37), (88, 134, 37), (176, 134, 37)]
+    assert layout.grid_slots(264, 180, 4) == [(88, 46, 37), (176, 46, 37), (88, 134, 37), (176, 134, 37)]
 
 
 def test_every_count_fits_in_its_area():
     for w, h, left, top in (AREA, (264, 176, 0, 0), (200, 100, 10, 20), (39, 26, 0, 0)):
         for n in range(2, 7):
-            got = dice_layout.grid_slots(w, h, n, left, top)
+            got = layout.grid_slots(w, h, n, left, top)
             assert len(got) == n
             for cx, cy, half in got:
                 assert left <= cx - half and cx + half <= left + w

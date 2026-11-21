@@ -1,28 +1,24 @@
 """Run the real app in the badgeware-wasm simulator (Node) and check pixels.
 
-Colours and positions come from apps/dice_roller/display_tufty.py: every
+Colours and positions come from apps/dice_roller/devices/tufty.py: every
 die is dark red, locked dice grey, labels sit beside the five buttons on
 both screens, the header is dark on the roll screen and blue on the
 configure screen, and the highlighted dice-count field is a white pill.
 
-Every step costs simulator time, so the tests share three button
-sequences (CONFIG, LOCK, ROLL below); each is run once and its frames
+Every step costs simulator time, so the tests share two button
+sequences (CONFIG and LOCK below); each is run once and its frames
 reused. The rules themselves are proved by the host tests; these prove
 what only the firmware can: what is drawn where, and that each of the
 five buttons reaches the app.
 """
 
-import json
-import shutil
-import subprocess
-import sys
 
-import dice_layout
-import display_tufty as tufty
 import pytest
-from conftest import ROOT
+from devices import tufty
+from game import layout
+from simrun import needs_node, simulate
 
-pytestmark = pytest.mark.skipif(shutil.which("node") is None, reason="node not installed")
+pytestmark = needs_node
 
 WIDTH = 320
 
@@ -31,33 +27,21 @@ WIDTH = 320
 # 1 configure (count highlighted), 2 die 1 highlighted, 3 count again,
 # 4 five dice, 5 roll screen with five dice.
 CONFIG = "B,C,A,UP,B"
-# 1 die 1 locked, 2 highlight on die 2, 3 after holding UP.
-LOCK = "UP,C,UP:1200"
-ROLL = "DOWN,DOWN"
+# 1 die 1 locked, 2 highlight on die 2, 3 after holding UP, 4 and 5 rolled.
+LOCK = "UP,C,UP:1200,DOWN,DOWN"
 
 
 @pytest.fixture(scope="module")
 def run(tmp_path_factory):
     """run(steps) -> the frames after each step. Each sequence boots the
     simulator once; a crash or an error in the app's log fails the test."""
-    subprocess.run([sys.executable, "sim/stage.py"], cwd=ROOT, check=True, capture_output=True)
     out_dir = tmp_path_factory.mktemp("sim")
     results = {}
 
     def _run(steps):
         if steps not in results:
-            # one file per sequence: a run that dies before writing must
-            # not be read as the previous run's frames
-            out = out_dir / f"frames{len(results)}.json"
-            done = subprocess.run(
-                ["node", "sim/run_headless.mjs", "--model", "tufty", "--steps", steps, "--frames", str(out)],
-                cwd=ROOT, check=False, capture_output=True, text=True, timeout=120,
-            )
-            assert out.exists(), done.stderr
-            results[steps] = json.loads(out.read_text())
+            results[steps] = simulate("tufty", steps, out_dir / f"frames{len(results)}.json")
         result = results[steps]
-        assert no_errors(result), (result["status"], result["log"])
-        assert len(result["frames"]) == 1 + len(steps.split(","))
         assert (result["width"], result["height"]) == (WIDTH, 240)
         return result["frames"]
 
@@ -72,7 +56,7 @@ def rgb(frame, x, y):
 def probe(count, i):
     """A point inside die i's body that only the body fill covers."""
     left, top, width, height = tufty.DICE_AREA
-    cx, cy, half = dice_layout.grid_slots(width, height, count, left, top)[i]
+    cx, cy, half = layout.grid_slots(width, height, count, left, top)[i]
     return cx - half + 8, cy - half + 8
 
 
@@ -97,10 +81,6 @@ def labels_shown(frame):
     bottom = [bright_pixels(frame, x - 30, tufty.BAR_TOP + 2, x + 30, 239) for x in tufty.LABEL_X.values()]
     side = [bright_pixels(frame, tufty.COLUMN_LEFT + 2, y - 14, 318, y + 10) for y in tufty.LABEL_Y.values()]
     return all(n >= 5 for n in bottom + side)
-
-
-def no_errors(result):
-    return result["status"] == "ok" and not any("- ERROR" in line for line in result["log"])
 
 
 def test_boots_to_four_red_dice_two_by_two(run):
@@ -177,5 +157,5 @@ def test_down_rolls_the_dice(run):
     # Each frame is taken after the roll animation has ended. A roll that
     # repeats all four values draws the same frame (1 in 1296), so two
     # rolls are given the chance to show a change.
-    launch, first, second = run(ROLL)
-    assert first != launch or second != first
+    before, first, second = run(LOCK)[3:]
+    assert first != before or second != first

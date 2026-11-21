@@ -35,10 +35,6 @@ def test_latest_release_tag():
     assert update_sim.latest_release_tag(RELEASES) == "v3.1.1"
 
 
-def test_artifact_name():
-    assert update_sim.artifact_name("tufty") == "badgeware-tufty2350-asyncify"
-
-
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
     """A temp repo root pinned to run 1 / v3.1.1, with gh and git stubbed."""
@@ -109,8 +105,16 @@ def test_download_missing_files_changes_nothing(repo, monkeypatch):
 
 
 def test_update_replaces_build_and_writes_version(repo, monkeypatch):
-    monkeypatch.setattr(update_sim, "gh_run", good_download)
+    downloads = []
+
+    def download(args):
+        downloads.append(args[:7])
+        good_download(args)
+
+    monkeypatch.setattr(update_sim, "gh_run", download)
     assert update_sim.main([]) == 0
+    # the newest good run's Node build for the pinned model
+    assert downloads == [["run", "download", "4", "-R", "pimoroni/badgeware-wasm", "-n", "badgeware-tufty2350-asyncify"]]
     files = snapshot(repo.root)
     assert files["tufty/micropython.mjs"] == b"new mjs"
     assert files["tufty/micropython.wasm"] == b"new wasm"

@@ -24,6 +24,10 @@ class FakeBadge:
         self.ticks = 0
         self.down = set()
         self.went_down = set()
+        self.woken = False
+
+    def woken_by_button(self):
+        return self.woken
 
     def pressed(self):
         return list(self.went_down)
@@ -58,7 +62,7 @@ class FakeDisplay:
     events: ClassVar[list] = []
 
     def __init__(self):
-        FakeDisplay.events.append(("init",))
+        FakeDisplay.events.append(("init", type(self).__name__))
 
     def begin_frame(self):
         FakeDisplay.events.append(("begin",))
@@ -67,12 +71,21 @@ class FakeDisplay:
         FakeDisplay.events.append(("end", app.screen, now))
 
 
+class FakeTufty(FakeDisplay):
+    pass
+
+
+class FakeBadger(FakeDisplay):
+    pass
+
+
 @pytest.fixture
 def entry(monkeypatch):
     """Load the entry file for a model; returns (module, badge, state, frame)."""
 
-    def load(model, saved=None):
+    def load(model, saved=None, woken=False):
         badge = FakeBadge(model)
+        badge.woken = woken
         state = FakeState()
         state.saved.update(saved or {})
         loop = {}
@@ -88,7 +101,8 @@ def entry(monkeypatch):
         for name, value in fakes.items():
             monkeypatch.setattr(builtins, name, value, raising=False)
         FakeDisplay.events = []
-        monkeypatch.setitem(sys.modules, "display_tufty", types.SimpleNamespace(TuftyDisplay=FakeDisplay))
+        monkeypatch.setitem(sys.modules, "devices.tufty", types.SimpleNamespace(TuftyDisplay=FakeTufty))
+        monkeypatch.setitem(sys.modules, "devices.badger", types.SimpleNamespace(BadgerDisplay=FakeBadger))
         spec = importlib.util.spec_from_file_location("dice_roller_entry", ENTRY)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -105,24 +119,43 @@ def entry(monkeypatch):
     return load
 
 
-def test_display_owns_each_frame(entry):
-    _, _, _, frame = entry("tufty")
+@pytest.mark.parametrize(("model", "display"), [("tufty", "FakeTufty"), ("badger", "FakeBadger")])
+def test_each_badge_gets_its_display_and_it_owns_each_frame(entry, model, display):
+    _, _, _, frame = entry(model)
     frame()
     frame()
-    assert FakeDisplay.events == [("init",), ("begin",), ("end", "roll_screen", 0), ("begin",), ("end", "roll_screen", 500)]
+    assert FakeDisplay.events == [
+        ("init", display), ("begin",), ("end", "roll_screen", 0), ("begin",), ("end", "roll_screen", 500),
+    ]
 
 
-def test_saves_only_when_a_change_is_accepted(entry):
-    _, _, state, frame = entry("tufty")
+def test_roll_saves_and_relaunch_restores(entry):
+    module, _, state, frame = entry("tufty")
     frame()
-    for buttons in ([B], [], [B], []):
-        frame(*buttons)
-    assert state.saved == {}
-    for buttons in ([B], [], [UP], []):
-        frame(*buttons)
-    assert state.saved == {}
+    frame(UP)
+    assert state.saved["dice_roller"]["locked"][0] is True  # a lock is saved
+    frame()
+    frame(DOWN)
+    saved = state.saved["dice_roller"]
+    assert saved["locked"][0] is True and len(saved["values"]) == 6
+    shown = [d.value for d in module.app.dice.dice]
+    again, _, _, _ = entry("tufty", saved=state.saved)
+    assert [d.value for d in again.app.dice.dice] == shown
+    assert again.app.dice.dice[0].locked
+
+
+def test_waking_press_only_wakes(entry):
+    # the badge may have slept on another screen; a press must not act on
+    # a screen the user wasn't looking at
+    module, _, state, frame = entry("tufty", woken=True)
+    frame(DOWN)
+    assert state.saved == {} and module.app.rolled == []
+
+
+def test_menu_press_is_ignored_at_launch(entry):
+    module, _, _, frame = entry("tufty")
     frame(B)
-    assert state.saved == {"dice_roller": {"count": 5, "faces": [6] * 6}}
+    assert module.app.screen == "roll_screen"
 
 
 def test_saved_config_is_loaded_and_repaired(entry):
@@ -131,9 +164,28 @@ def test_saved_config_is_loaded_and_repaired(entry):
     assert module.app.faces == [20, 6, 6, 6, 6, 6]
 
 
+def test_saves_keep_the_dice_beyond_the_count(entry):
+    # Lowering the count and pressing Done saves; the four dice put away
+    # keep their last roll from the loaded record, so raising the count
+    # later brings them back.
+    saved = {"count": 6, "faces": [6] * 6, "values": [1, 2, 3, 4, 5, 6], "locked": [False] * 6}
+    _, _, state, frame = entry("tufty", saved={"dice_roller": saved})
+    frame()  # launch: presses are ignored for the first 400 ms
+    frame(B)
+    for _ in range(4):
+        frame()
+        frame(DOWN)
+    frame()
+    frame(B)
+    saved = state.saved["dice_roller"]
+    assert saved["count"] == 2
+    assert saved["values"][2:] == [3, 4, 5, 6]
+
+
 def test_unsupported_model_shows_message_and_updates_display(entry):
-    _, _, _, frame = entry("badger")
+    _, _, _, frame = entry("blinky")
     frame()
     frame()
-    assert any(call[0] == "text" for call in builtins.screen.calls)
+    texts = [call[1][0] for call in builtins.screen.calls if call[0] == "text"]
+    assert texts == ["Dice Roller:", "blinky not", "supported"] * 2
     assert [c for c in builtins.display.calls if c[0] == "update"] == [("update", ())]

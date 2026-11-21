@@ -1,6 +1,6 @@
 """Draws the dice app on the Tufty 2350 (320x240 colour LCD, HIRES).
 
-The only Tufty-specific file. It reads DiceApp's state and draws; it
+The Tufty 2350 display. It reads DiceApp's state and draws; it
 never changes it. The Tufty's run() polls, clears and pushes every frame,
 so this redraws every frame and animates rolls: for ROLL_ANIM_MS after a
 roll, the unlocked dice that rolled flicker through random values.
@@ -27,8 +27,8 @@ set), falling back to a pixel font if it can't be loaded. The simulator tests
 
 import random
 
-from dice_input import A, B, C, DOWN, HOLD_LABELS, LABELS, ROLL_SCREEN, UP
-from dice_layout import grid_slots
+from game.controls import A, B, C, DOWN, HOLD_LABELS, LABELS, ROLL_SCREEN, UP
+from game.layout import grid_slots
 
 WIDTH = 320
 HEIGHT = 240
@@ -92,7 +92,7 @@ class TuftyDisplay:
         left, top, width, height = DICE_AREA
         self.layouts = {n: grid_slots(width, height, n, left, top) for n in range(2, 7)}
 
-    # -- the display contract (called by __init__.py every frame) -------------
+    # -- the display contract (see devices/__init__.py; called every frame) -------------
 
     def begin_frame(self):
         """Before buttons are read. Nothing to do: the Tufty's run() polls
