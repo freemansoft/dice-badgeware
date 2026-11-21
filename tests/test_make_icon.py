@@ -10,7 +10,7 @@ ICON = Path(__file__).resolve().parent.parent / "apps" / "dice_roller" / "icon.p
 
 TRANSPARENT = (0, 0, 0, 0)
 ORANGE = (255, 140, 0, 255)
-WHITE = (255, 255, 255, 255)
+BLACK = (0, 0, 0, 255)
 
 
 def decode(png):
@@ -43,10 +43,26 @@ def test_build_png_draws_the_art():
     assert (width, height) == (24, 24)
     assert rows[0][0] == TRANSPARENT      # outside the die
     assert rows[4][4] == ORANGE           # die body
-    assert rows[11][12] == WHITE          # the centre pip
-    assert rows[2][3] == TRANSPARENT and rows[2][4] == ORANGE  # rounded corner
+    assert rows[11][12] == BLACK          # the centre pip
+    assert rows[2][3] == TRANSPARENT and rows[2][4] == BLACK  # rounded corner, outlined
 
 
 def test_committed_icon_is_the_generated_one():
     # pixels, not bytes: another zlib may compress the same pixels differently
     assert decode(ICON.read_bytes()) == decode(make_icon.build_png(make_icon.ART))
+
+
+def on_badger(r, g, b, a):
+    """The shade a pixel gets on the Badger's e-ink, over the menu's tile.
+    The panel ORs R, G and B and keeps the top two bits: 0 black .. 3 white.
+    The tile (color.light_grey, 0xC0) is white there too."""
+    return 3 if a == 0 else (r | g | b) >> 6
+
+
+def test_icon_shows_on_the_badgers_greyscale_panel():
+    # the first icon (orange with white pips) came out as a blank square
+    _, _, rows = decode(ICON.read_bytes())
+    shades = [[on_badger(*p) for p in row] for row in rows]
+    assert shades[11][12] == 0                 # the centre pip is black
+    assert shades[2][8] == 0 and shades[12][2] == 0  # the die has a black outline
+    assert sum(row.count(0) for row in shades) >= 100

@@ -6,44 +6,48 @@ ART grid and re-run:
 
     python3 tools/make_icon.py
 
-Legend: "#" orange die body, "o" white pip, "." transparent.
+Legend: "#" orange die body, "k" black outline, "o" black pip,
+"." transparent.
 """
 
 import struct
 import zlib
 from pathlib import Path
 
-# An orange die showing five, rounded corners.
+# An orange die showing five, rounded corners, with a black outline and
+# black pips so it still reads on the Badger's greyscale e-ink (where the
+# orange washes out to white).
 ART = [
     "........................",
     "........................",
-    "....################....",
-    "...##################...",
-    "..####################..",
-    "..####################..",
-    "..####oo########oo####..",
-    "..###oooo######oooo###..",
-    "..###oooo######oooo###..",
-    "..####oo########oo####..",
-    "..##########oo########..",
-    "..#########oooo#######..",
-    "..#########oooo#######..",
-    "..##########oo########..",
-    "..####oo########oo####..",
-    "..###oooo######oooo###..",
-    "..###oooo######oooo###..",
-    "..####oo########oo####..",
-    "..####################..",
-    "..####################..",
-    "...##################...",
-    "....################....",
+    "....kkkkkkkkkkkkkkkk....",
+    "...k################k...",
+    "..k##################k..",
+    "..k##################k..",
+    "..k###oo########oo###k..",
+    "..k##oooo######oooo##k..",
+    "..k##oooo######oooo##k..",
+    "..k###oo########oo###k..",
+    "..k#########oo#######k..",
+    "..k########oooo######k..",
+    "..k########oooo######k..",
+    "..k#########oo#######k..",
+    "..k###oo########oo###k..",
+    "..k##oooo######oooo##k..",
+    "..k##oooo######oooo##k..",
+    "..k###oo########oo###k..",
+    "..k##################k..",
+    "..k##################k..",
+    "...k################k...",
+    "....kkkkkkkkkkkkkkkk....",
     "........................",
     "........................",
 ]
 
 PALETTE = {
     "#": (255, 140, 0, 255),
-    "o": (255, 255, 255, 255),
+    "k": (0, 0, 0, 255),
+    "o": (0, 0, 0, 255),
     ".": (0, 0, 0, 0),
 }
 
