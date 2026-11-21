@@ -5,8 +5,8 @@ die is dark red, locked dice grey, labels sit beside the five buttons on
 both screens, the header is dark on the roll screen and blue on the
 configure screen, and the highlighted dice-count field is a white pill.
 
-Every step costs simulator time, so the tests share three button
-sequences (CONFIG, LOCK, ROLL below); each is run once and its frames
+Every step costs simulator time, so the tests share two button
+sequences (CONFIG and LOCK below); each is run once and its frames
 reused. The rules themselves are proved by the host tests; these prove
 what only the firmware can: what is drawn where, and that each of the
 five buttons reaches the app.
@@ -27,9 +27,8 @@ WIDTH = 320
 # 1 configure (count highlighted), 2 die 1 highlighted, 3 count again,
 # 4 five dice, 5 roll screen with five dice.
 CONFIG = "B,C,A,UP,B"
-# 1 die 1 locked, 2 highlight on die 2, 3 after holding UP.
-LOCK = "UP,C,UP:1200"
-ROLL = "DOWN,DOWN"
+# 1 die 1 locked, 2 highlight on die 2, 3 after holding UP, 4 and 5 rolled.
+LOCK = "UP,C,UP:1200,DOWN,DOWN"
 
 
 @pytest.fixture(scope="module")
@@ -158,5 +157,5 @@ def test_down_rolls_the_dice(run):
     # Each frame is taken after the roll animation has ended. A roll that
     # repeats all four values draws the same frame (1 in 1296), so two
     # rolls are given the chance to show a change.
-    launch, first, second = run(ROLL)
-    assert first != launch or second != first
+    before, first, second = run(LOCK)[3:]
+    assert first != before or second != first

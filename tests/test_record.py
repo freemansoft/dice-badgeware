@@ -18,11 +18,6 @@ def test_defaults_are_fresh():
     assert record.defaults()["faces"][0] == 6
 
 
-def test_valid_kept():
-    d = {"count": 2, "faces": [4, 20, 6, 8, 10, 12]}
-    assert record.repair(d) == d
-
-
 def test_count_clamped():
     assert [repair_count(c) for c in (0, 1, -3, 7, 99)] == [2, 2, 2, 6, 6]
 
@@ -68,18 +63,16 @@ def test_input_not_mutated():
     assert d == {"count": 0, "faces": [1]}
 
 
-ROLL = {"count": 4, "faces": [6] * 6, "values": [3, 5, 1, 6, 2, 2],
+ROLL = {"count": 4, "faces": [4, 20, 6, 8, 10, 12], "values": [3, 5, 1, 6, 2, 2],
         "locked": [False, True, False, False, False, False]}
 
 
-def test_saved_roll_kept():
-    r = record.repair(ROLL)
-    assert r["values"] == [3, 5, 1, 6, 2, 2]
-    assert r["locked"] == [False, True, False, False, False, False]
-
-
-def test_old_file_has_no_roll():
-    assert record.repair({"count": 3, "faces": [8] * 6}) == {"count": 3, "faces": [8] * 6}
+@pytest.mark.parametrize("valid", [
+    pytest.param({"count": 2, "faces": [4, 20, 6, 8, 10, 12]}, id="setup only, as in an older file"),
+    pytest.param(ROLL, id="with a saved roll"),
+])
+def test_valid_record_kept_as_is(valid):
+    assert record.repair(valid) == valid
 
 
 @pytest.mark.parametrize("values", [[1, 2, 3], "x", None, [1] * 7])
@@ -124,9 +117,3 @@ def test_snapshot_keeps_hidden_slots_from_the_previous_record():
     saved = record.snapshot(app, previous)
     assert saved["values"] == [1, 1, 1, 6, 2, 2]
     assert saved["locked"] == [False, False, True, False, False, True]
-
-
-def test_snapshot_round_trips_through_repair():
-    app = DiceApp(record.repair(ROLL), lambda lo, hi: 1)
-    saved = record.snapshot(app, record.repair(ROLL))
-    assert record.repair(saved) == saved

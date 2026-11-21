@@ -12,7 +12,7 @@ import types
 import pytest
 from devices import badger
 from game.app import DiceApp
-from game.controls import ROLL
+from game.controls import CONFIGURE, ROLL
 from saving import record
 
 
@@ -90,7 +90,7 @@ def test_change_refreshes_once(env):
     env.calls.clear()
     a.apply(ROLL, 100)
     d.end_frame(a, 100)
-    assert env.calls.count("update") == 1
+    assert env.calls == ["update", ("wait", 30_000)]
 
 
 def test_polls_instead_of_waiting_while_held(env):
@@ -116,3 +116,17 @@ def test_roll_draws_final_values_and_total(env):
     badger.BadgerDisplay().end_frame(a, 0)  # the same instant as the roll
     assert [t for t in env.screen.texts if t.isdigit()] == ["3", "3", "3", "3"]
     assert "Total  12" in env.screen.texts
+
+
+def test_each_screen_names_what_its_buttons_do(env):
+    a = app()
+    display = badger.BadgerDisplay()
+    display.end_frame(a, 0)
+    roll = set(env.screen.texts)
+    env.screen.texts.clear()
+    a.apply(CONFIGURE, 100)
+    display.end_frame(a, 100)
+    setup = set(env.screen.texts)
+    assert {"Roll Baby Roll", "Left", "Setup", "Right", "Lock", "hold: all", "Roll", "d6"} <= roll
+    assert {"Setup", "Dice  4", "d6", "Left", "Done", "Right", "More", "Less"} <= setup
+    assert not {"Lock", "hold: all", "Roll", "Roll Baby Roll"} & setup

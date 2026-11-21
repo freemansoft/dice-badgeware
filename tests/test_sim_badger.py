@@ -1,8 +1,10 @@
 """Run the real app on the Badger 2350 in the badgeware-wasm simulator.
 
-Shades and positions come from apps/dice_roller/badger.py. The
+Shades and positions come from apps/dice_roller/devices/badger.py. The
 simulator, like the panel, reduces every frame to four greys (0, 85, 170,
-255), so pixels are read as bands. Sequences are run once and shared.
+255), so pixels are read as bands. Each boot costs several seconds, so the
+tests share two sequences (SCREENS and ROLL below), each run once, plus
+one relaunch from ROLL's saved record.
 """
 
 import json
@@ -16,8 +18,12 @@ pytestmark = needs_node
 
 W, H = badger.WIDTH, badger.HEIGHT
 
-# 1 die 1 locked, 2 highlight on die 2, 3 after holding UP (unlock all).
-LOCK = "UP,C,UP:1200"
+# 0 launch, 1 die 1 locked, 2 highlight on die 2, 3 after holding UP
+# (unlock all), 4 the setup screen.
+SCREENS = "UP,C,UP:1200,B"
+# 1 die 1 locked, 2 the others rolled (DOWN held 2 s, so a second refresh
+# ~0.8 s later would be counted too); saved after the roll.
+ROLL = "UP,DOWN:2000"
 
 
 @pytest.fixture(scope="module")
@@ -81,43 +87,44 @@ def labels_shown(frame):
 
 
 def test_badger_boots_to_four_white_dice(run):
-    frame = run("")["frames"][0]
+    frame = run(SCREENS)["frames"][0]
     assert [body_shade(frame, i) for i in range(4)] == ["white"] * 4
     assert [box_shade(frame, i) for i in range(4)] == ["white"] * 4
 
 
 def test_badger_labels_beside_every_button(run):
-    roll, setup = run("B")["frames"]
+    frames = run(SCREENS)["frames"]
+    roll, setup = frames[0], frames[4]
     assert labels_shown(roll)
     assert labels_shown(setup)
 
 
 def test_badger_lock_draws_grey_box(run):
-    frame = run(LOCK)["frames"][1]
+    frame = run(SCREENS)["frames"][1]
     assert box_shade(frame, 0) == "light" and body_shade(frame, 0) == "white"
     assert box_shade(frame, 1) == "white"
 
 
 def test_badger_long_up_unlocks_all(run):
-    frames = run(LOCK)["frames"]
+    frames = run(SCREENS)["frames"]
     assert box_shade(frames[2], 0) == "light"  # still locked before the hold
     assert [box_shade(frames[3], i) for i in range(4)] == ["white"] * 4
 
 
 def test_badger_setup_header_is_dark_grey(run):
-    roll, setup = run("B")["frames"]
+    frames = run(SCREENS)["frames"]
+    roll, setup = frames[0], frames[4]
     assert shade(roll, 4, 4) == "black"
     assert shade(setup, 4, 4) == "dark"
 
 
 def test_badger_roll_refreshes_once(run):
     # no animation: one e-ink refresh, straight to the final values
-    # (held 2 s, so a second refresh ~0.8 s later would be counted too)
-    assert run("DOWN:2000")["refreshes"][1] == 1
+    assert run(ROLL)["refreshes"][2] == 1
 
 
 def test_badger_relaunch_restores_the_roll(run):
-    first = run("UP,DOWN")
+    first = run(ROLL)
     state = first["state"]
     assert json.loads(state)["locked"][0] is True
     again = run("", state=state)

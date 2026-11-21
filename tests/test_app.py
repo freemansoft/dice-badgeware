@@ -68,7 +68,7 @@ def test_roll_only_unlocked():
     assert values(a) == [3, 5, 5]
 
 
-def test_all_locked_roll_changes_nothing():
+def test_all_locked_roll_changes_nothing_and_saves_nothing():
     a = make(count=2)
     a.apply(LOCK, 1)
     a.apply(RIGHT, 2)
@@ -77,6 +77,7 @@ def test_all_locked_roll_changes_nothing():
     a.box[0] = 6
     a.apply(ROLL, 500)
     assert (a.changes, a.rolled_at, values(a)) == before
+    assert not a.take_save_point()
 
 
 def test_unlock_all():
@@ -190,19 +191,19 @@ def test_locks_and_moves_are_not_save_points():
     assert not a.take_save_point()
 
 
-def test_all_locked_roll_is_not_a_save_point():
+def test_changes_moves_once_per_visible_change():
+    # The Badger redraws only when `changes` moves, so every action that
+    # changes the screen must move it, on both screens, and nothing else may.
     a = make(count=2)
-    a.apply(LOCK, 0)
-    a.apply(RIGHT, 0)
-    a.apply(LOCK, 0)
-    a.apply(ROLL, 0)
-    assert not a.take_save_point()
-
-
-def test_changes_counter():
-    a = make()
-    c = a.changes
-    a.apply(INC, 1)
-    assert a.changes == c
-    a.apply(RIGHT, 2)
-    assert a.changes == c + 1
+    steps = [
+        (RIGHT, 1), (LEFT, 1), (LOCK, 1), (UNLOCK_ALL, 1), (ROLL, 1),
+        (INC, 0), (ACCEPT, 0),            # not roll-screen actions
+        (CONFIGURE, 1),
+        (RIGHT, 1), (INC, 1), (DEC, 1), (LEFT, 1),
+        (ROLL, 0), (LOCK, 0),             # not configure-screen actions
+        (ACCEPT, 1),
+    ]
+    for t, (action, moves) in enumerate(steps):
+        before = a.changes
+        a.apply(action, t)
+        assert a.changes == before + moves, (t, action)

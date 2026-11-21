@@ -62,13 +62,21 @@ class FakeDisplay:
     events: ClassVar[list] = []
 
     def __init__(self):
-        FakeDisplay.events.append(("init",))
+        FakeDisplay.events.append(("init", type(self).__name__))
 
     def begin_frame(self):
         FakeDisplay.events.append(("begin",))
 
     def end_frame(self, app, now):
         FakeDisplay.events.append(("end", app.screen, now))
+
+
+class FakeTufty(FakeDisplay):
+    pass
+
+
+class FakeBadger(FakeDisplay):
+    pass
 
 
 @pytest.fixture
@@ -93,8 +101,8 @@ def entry(monkeypatch):
         for name, value in fakes.items():
             monkeypatch.setattr(builtins, name, value, raising=False)
         FakeDisplay.events = []
-        monkeypatch.setitem(sys.modules, "devices.tufty", types.SimpleNamespace(TuftyDisplay=FakeDisplay))
-        monkeypatch.setitem(sys.modules, "devices.badger", types.SimpleNamespace(BadgerDisplay=FakeDisplay))
+        monkeypatch.setitem(sys.modules, "devices.tufty", types.SimpleNamespace(TuftyDisplay=FakeTufty))
+        monkeypatch.setitem(sys.modules, "devices.badger", types.SimpleNamespace(BadgerDisplay=FakeBadger))
         spec = importlib.util.spec_from_file_location("dice_roller_entry", ENTRY)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -111,11 +119,14 @@ def entry(monkeypatch):
     return load
 
 
-def test_display_owns_each_frame(entry):
-    _, _, _, frame = entry("tufty")
+@pytest.mark.parametrize(("model", "display"), [("tufty", "FakeTufty"), ("badger", "FakeBadger")])
+def test_each_badge_gets_its_display_and_it_owns_each_frame(entry, model, display):
+    _, _, _, frame = entry(model)
     frame()
     frame()
-    assert FakeDisplay.events == [("init",), ("begin",), ("end", "roll_screen", 0), ("begin",), ("end", "roll_screen", 500)]
+    assert FakeDisplay.events == [
+        ("init", display), ("begin",), ("end", "roll_screen", 0), ("begin",), ("end", "roll_screen", 500),
+    ]
 
 
 def test_roll_saves_and_relaunch_restores(entry):
@@ -151,15 +162,28 @@ def test_saved_config_is_loaded_and_repaired(entry):
     assert module.app.faces == [20, 6, 6, 6, 6, 6]
 
 
-def test_badger_gets_its_display(entry):
-    _, _, _, frame = entry("badger")
+def test_saves_keep_the_dice_beyond_the_count(entry):
+    # Lowering the count and pressing Done saves; the four dice put away
+    # keep their last roll from the loaded record, so raising the count
+    # later brings them back.
+    saved = {"count": 6, "faces": [6] * 6, "values": [1, 2, 3, 4, 5, 6], "locked": [False] * 6}
+    _, _, state, frame = entry("tufty", saved={"dice_roller": saved})
+    frame()  # launch: presses are ignored for the first 400 ms
+    frame(B)
+    for _ in range(4):
+        frame()
+        frame(DOWN)
     frame()
-    assert FakeDisplay.events == [("init",), ("begin",), ("end", "roll_screen", 0)]
+    frame(B)
+    saved = state.saved["dice_roller"]
+    assert saved["count"] == 2
+    assert saved["values"][2:] == [3, 4, 5, 6]
 
 
 def test_unsupported_model_shows_message_and_updates_display(entry):
     _, _, _, frame = entry("blinky")
     frame()
     frame()
-    assert any(call[0] == "text" for call in builtins.screen.calls)
+    texts = [call[1][0] for call in builtins.screen.calls if call[0] == "text"]
+    assert texts == ["Dice Roller:", "blinky not", "supported"] * 2
     assert [c for c in builtins.display.calls if c[0] == "update"] == [("update", ())]
