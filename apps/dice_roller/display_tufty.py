@@ -169,20 +169,24 @@ class TuftyDisplay:
 
     def _draw_roll(self, app, now):
         dice = app.dice.dice
+        # What each die shows: while a roll animates, the dice that rolled
+        # flicker, and the total adds up what is shown so it can't give the
+        # result away before the dice land.
+        animating = app.rolled_at is not None and now - app.rolled_at < ROLL_ANIM_MS
+        shown = [
+            random.randint(1, die.faces) if animating and i in app.rolled and not die.locked else die.value
+            for i, die in enumerate(dice)
+        ]
         self._rect(0, 0, WIDTH, HEADER_H, self.pens["roll_header"])
         self._text(TITLE, 10, 5, SIZE_HEADER, self.pens["label"])
-        total = "Total  {}".format(app.dice.total())
+        total = "Total  {}".format(sum(shown))
         w, _ = self._measure(total, SIZE_HEADER)
         self._text(total, RIGHT_EDGE - w, 5, SIZE_HEADER, self.pens["label"])
-        animating = app.rolled_at is not None and now - app.rolled_at < ROLL_ANIM_MS
         for i, (cx, cy, half) in enumerate(self.layouts[len(dice)]):
             die = dice[i]
             self._die(cx, cy, half, i == app.cursor, self.pens["locked"] if die.locked else self.pens["die"])
             text_pen = self.pens["locked_text"] if die.locked else self.pens["die_text"]
-            value = die.value
-            if animating and i in app.rolled and not die.locked:
-                value = random.randint(1, die.faces)
-            self._centred(str(value), cx, cy - 4, SIZE_VALUE, text_pen)
+            self._centred(str(shown[i]), cx, cy - 4, SIZE_VALUE, text_pen)
             label = "d{} LOCK".format(die.faces) if die.locked else "d{}".format(die.faces)
             self._centred(label, cx, cy + half - 11, SIZE_TYPE, text_pen)
 
