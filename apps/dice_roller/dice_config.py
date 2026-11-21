@@ -1,9 +1,11 @@
 """The saved dice configuration: defaults, and repair of whatever was read.
 
 Saved by __init__.py with Badgeware's State helper under STATE_NAME
-(/state/dice_roller.json) as {"count": 2-6, "faces": [six ints 4-20]}.
-`faces` covers all six slots, so dice dropped by lowering the count keep
-their faces. Pure Python, no Badgeware names.
+(/state/dice_roller.json) as {"count": 2-6, "faces": [six ints 4-20]},
+plus the last roll when there is one: "values" (six ints, each 1 up to
+its slot's faces) and "locked" (six bools). Every list covers all six
+slots, so dice dropped by lowering the count keep their faces and their
+last roll. Pure Python, no Badgeware names.
 """
 
 from dice import DEFAULT_FACES, MAX_DICE, MAX_FACES, MIN_FACES
@@ -37,4 +39,13 @@ def repair(data):
         faces = []
     faces = [_whole(f, DEFAULT_FACES, MIN_FACES, MAX_FACES) for f in faces[:MAX_DICE]]
     faces += [DEFAULT_FACES] * (MAX_DICE - len(faces))
-    return {"count": count, "faces": faces}
+    repaired = {"count": count, "faces": faces}
+    values = data.get("values")
+    if isinstance(values, list) and len(values) == MAX_DICE:
+        repaired["values"] = [_whole(v, 1, 1, faces[i]) for i, v in enumerate(values)]
+        locked = data.get("locked")
+        if isinstance(locked, list) and len(locked) == MAX_DICE:
+            repaired["locked"] = [x is True for x in locked]
+        else:
+            repaired["locked"] = [False] * MAX_DICE
+    return repaired

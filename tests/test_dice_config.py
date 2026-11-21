@@ -1,4 +1,5 @@
 import dice_config
+import pytest
 
 
 def repair_count(c):
@@ -63,3 +64,44 @@ def test_input_not_mutated():
     d = {"count": 0, "faces": [1]}
     dice_config.repair(d)
     assert d == {"count": 0, "faces": [1]}
+
+
+ROLL = {"count": 4, "faces": [6] * 6, "values": [3, 5, 1, 6, 2, 2],
+        "locked": [False, True, False, False, False, False]}
+
+
+def test_saved_roll_kept():
+    r = dice_config.repair(ROLL)
+    assert r["values"] == [3, 5, 1, 6, 2, 2]
+    assert r["locked"] == [False, True, False, False, False, False]
+
+
+def test_old_file_has_no_roll():
+    assert dice_config.repair({"count": 3, "faces": [8] * 6}) == {"count": 3, "faces": [8] * 6}
+
+
+@pytest.mark.parametrize("values", [[1, 2, 3], "x", None, [1] * 7])
+def test_bad_values_mean_no_roll(values):
+    r = dice_config.repair({**ROLL, "values": values})
+    assert "values" not in r and "locked" not in r
+
+
+def test_values_clamped_to_their_faces():
+    r = dice_config.repair({"count": 6, "faces": [4, 20, 6, 6, 6, 6],
+                            "values": [9, 0, "x", 6, None, 2.7], "locked": [False] * 6})
+    assert r["values"] == [4, 1, 1, 6, 1, 2]
+
+
+def test_locked_only_true_counts():
+    r = dice_config.repair({**ROLL, "locked": [True, 1, "yes", None, False, True]})
+    assert r["locked"] == [True, False, False, False, False, True]
+
+
+@pytest.mark.parametrize("locked", [None, [True], "x"])
+def test_bad_locked_means_unlocked(locked):
+    data = dict(ROLL)
+    if locked is None:
+        del data["locked"]
+    else:
+        data["locked"] = locked
+    assert dice_config.repair(data)["locked"] == [False] * 6
