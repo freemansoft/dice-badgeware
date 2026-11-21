@@ -44,18 +44,30 @@ HOME always returns to the Badgeware menu.
 
 ## Saved setup
 
-The configuration is saved when you accept it, in `/state/dice_roller.json`
-on the badge:
+The setup and the last roll are saved in `/state/dice_roller.json` on the
+badge, after every roll and every time you press Done on the Setup screen:
 
 ```json
-{ "count": 4, "faces": [6, 6, 6, 6, 6, 6] }
+{ "count": 4, "faces": [6, 6, 6, 6, 6, 6],
+  "values": [3, 5, 1, 6, 1, 1], "locked": [false, true, false, false, false, false] }
 ```
 
-`faces` holds all six dice, so lowering the count and raising it again
-brings dice back as they were. The first launch uses 4 six-sided dice. A
-hand-edited or damaged file is repaired on load (values pulled into range,
-anything unreadable replaced by the defaults). Rolls and locks are not
-saved.
+When the app starts (or the Badger wakes from sleep) it shows that roll
+again, locks included, instead of rolling fresh. The first launch uses 4
+six-sided dice. Each list covers all six dice, so lowering the count and
+raising it again brings dice back as they were. A hand-edited or damaged
+file is repaired on load (values pulled into range, anything unreadable
+replaced by the defaults); an older file without `values` keeps its setup
+and starts with a fresh roll.
+
+Only the state at the last roll is kept. On a restart, HOME or sleep these
+are lost:
+
+- changes on the Setup screen before you press Done (the setup comes back
+  as it was at the last Done);
+- locks and unlocks made since the last roll (they come back as they were
+  at that roll);
+- where the highlight was (it starts on the first die).
 
 ## Install
 

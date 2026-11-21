@@ -24,6 +24,10 @@ class FakeBadge:
         self.ticks = 0
         self.down = set()
         self.went_down = set()
+        self.woken = False
+
+    def woken_by_button(self):
+        return self.woken
 
     def pressed(self):
         return list(self.went_down)
@@ -71,8 +75,9 @@ class FakeDisplay:
 def entry(monkeypatch):
     """Load the entry file for a model; returns (module, badge, state, frame)."""
 
-    def load(model, saved=None):
+    def load(model, saved=None, woken=False):
         badge = FakeBadge(model)
+        badge.woken = woken
         state = FakeState()
         state.saved.update(saved or {})
         loop = {}
@@ -112,17 +117,31 @@ def test_display_owns_each_frame(entry):
     assert FakeDisplay.events == [("init",), ("begin",), ("end", "roll_screen", 0), ("begin",), ("end", "roll_screen", 500)]
 
 
-def test_saves_only_when_a_change_is_accepted(entry):
-    _, _, state, frame = entry("tufty")
+def test_roll_saves_and_relaunch_restores(entry):
+    module, _, state, frame = entry("tufty")
     frame()
-    for buttons in ([B], [], [B], []):
-        frame(*buttons)
-    assert state.saved == {}
-    for buttons in ([B], [], [UP], []):
-        frame(*buttons)
-    assert state.saved == {}
+    frame(UP)
+    frame()
+    assert state.saved == {}  # a lock alone is not saved
+    frame(DOWN)
+    saved = state.saved["dice_roller"]
+    assert saved["locked"][0] is True and len(saved["values"]) == 6
+    shown = [d.value for d in module.app.dice.dice]
+    again, _, _, _ = entry("tufty", saved=state.saved)
+    assert [d.value for d in again.app.dice.dice] == shown
+    assert again.app.dice.dice[0].locked
+
+
+def test_waking_press_is_not_ignored(entry):
+    module, _, _, frame = entry("tufty", woken=True)
     frame(B)
-    assert state.saved == {"dice_roller": {"count": 5, "faces": [6] * 6}}
+    assert module.app.screen == "config_screen"
+
+
+def test_menu_press_is_ignored_at_launch(entry):
+    module, _, _, frame = entry("tufty")
+    frame(B)
+    assert module.app.screen == "roll_screen"
 
 
 def test_saved_config_is_loaded_and_repaired(entry):

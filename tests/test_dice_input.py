@@ -67,3 +67,8 @@ def test_label_words():
     assert dice_input.LABELS[R] == {"A": "Left", "B": "Setup", "C": "Right", "UP": "Lock", "DOWN": "Roll"}
     assert dice_input.LABELS[K] == {"A": "Left", "B": "Done", "C": "Right", "UP": "More", "DOWN": "Less"}
     assert dice_input.HOLD_LABELS == {R: {"UP": "hold: all"}, K: {}}
+
+
+def test_no_ignore_window_when_woken():
+    m = dice_input.InputMapper(ignore_ms=0)
+    assert m.actions(R, {dice_input.B}, {dice_input.B}, 0) == [dice_input.CONFIGURE]

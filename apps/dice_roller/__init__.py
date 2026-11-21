@@ -16,7 +16,7 @@ import random
 
 import dice_config
 from dice_app import DiceApp
-from dice_input import InputMapper
+from dice_input import STARTUP_IGNORE_MS, InputMapper
 from display_tufty import TuftyDisplay
 
 DISPLAYS = {"tufty": TuftyDisplay}
@@ -64,7 +64,8 @@ State.load(dice_config.STATE_NAME, config)
 config = dice_config.repair(config)
 
 app = DiceApp(config, random.randint)
-inputs = InputMapper()
+# after a wake from sleep the first press is the one that woke the badge
+inputs = InputMapper(0 if badge.woken_by_button() else STARTUP_IGNORE_MS)
 view = DISPLAYS.get(badge.model, UnsupportedDisplay)()
 
 

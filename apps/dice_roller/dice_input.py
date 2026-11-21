@@ -29,7 +29,8 @@ ACCEPT = "accept"
 
 LONG_PRESS_MS = 800
 # The home menu launches an app on a B press; ignore buttons briefly so
-# that press can't open the configure screen.
+# that press can't open the configure screen. Not after a wake from sleep:
+# then the first press is the one that woke the badge, and it should act.
 STARTUP_IGNORE_MS = 400
 
 # Button order within one frame, and what each does on each screen.
@@ -53,7 +54,8 @@ HOLD_LABELS = {
 
 
 class InputMapper:
-    def __init__(self):
+    def __init__(self, ignore_ms=STARTUP_IGNORE_MS):
+        self.ignore_ms = ignore_ms
         self.start = None
         self.up_pressed_at = None
         self.long_fired = False
@@ -63,7 +65,7 @@ class InputMapper:
         frame; held: buttons down now."""
         if self.start is None:
             self.start = now
-        if now - self.start < STARTUP_IGNORE_MS:
+        if now - self.start < self.ignore_ms:
             return []
 
         if UP not in held:
