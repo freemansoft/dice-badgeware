@@ -19,6 +19,21 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+// The Badger's frame polls the buttons from inside the app (its run() loop
+// doesn't), and the simulator's poll is Python calling into JS under
+// asyncify, so the stack runs deep. Node 18's default 864 KB V8 stack
+// overflows ("Maximum call stack size exceeded"); rerun with a 4 MB one.
+const STACK_KB = 4000;
+if (!process.execArgv.some((arg) => arg.startsWith("--stack-size"))) {
+  const { spawnSync } = await import("node:child_process");
+  const child = spawnSync(
+    process.execPath,
+    ["--stack-size=" + STACK_KB, ...process.execArgv, fileURLToPath(import.meta.url), ...process.argv.slice(2)],
+    { stdio: "inherit" },
+  );
+  process.exit(child.status ?? 1);
+}
+
 const SIM = join(dirname(fileURLToPath(import.meta.url)), "dist");
 const BUTTON = { HOME: 0x20, A: 0x10, B: 0x08, C: 0x04, UP: 0x02, DOWN: 0x01 };
 const MODELS = ["tufty", "badger"];
@@ -26,7 +41,10 @@ const STATE_FILE = "/state/dice_roller.json";
 const VBUS_DETECT = 12;
 const RTC_ALARM = 13;
 const TIMEOUT_MS = 60_000;
-const SETTLE_MS = 500;
+// How long to wait after each step for the app to draw. The Badger's
+// simulated e-ink refresh converts every pixel to four greys in Python,
+// which takes ~650-850 ms per refresh, so it gets longer.
+const SETTLE = { tufty: 500, badger: 1500 };
 const DEFAULT_HOLD_MS = 150;
 
 const args = process.argv.slice(2);
@@ -60,6 +78,7 @@ if (!MODELS.includes(model) || stepsArg === undefined || !framesPath) {
   process.exit(2);
 }
 const DIST = join(SIM, model);
+const SETTLE_MS = SETTLE[model];
 
 let latest = null;
 let count = 0;

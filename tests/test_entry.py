@@ -94,6 +94,7 @@ def entry(monkeypatch):
             monkeypatch.setattr(builtins, name, value, raising=False)
         FakeDisplay.events = []
         monkeypatch.setitem(sys.modules, "display_tufty", types.SimpleNamespace(TuftyDisplay=FakeDisplay))
+        monkeypatch.setitem(sys.modules, "display_badger", types.SimpleNamespace(BadgerDisplay=FakeDisplay))
         spec = importlib.util.spec_from_file_location("dice_roller_entry", ENTRY)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
@@ -150,8 +151,14 @@ def test_saved_config_is_loaded_and_repaired(entry):
     assert module.app.faces == [20, 6, 6, 6, 6, 6]
 
 
-def test_unsupported_model_shows_message_and_updates_display(entry):
+def test_badger_gets_its_display(entry):
     _, _, _, frame = entry("badger")
+    frame()
+    assert FakeDisplay.events == [("init",), ("begin",), ("end", "roll_screen", 0)]
+
+
+def test_unsupported_model_shows_message_and_updates_display(entry):
+    _, _, _, frame = entry("blinky")
     frame()
     frame()
     assert any(call[0] == "text" for call in builtins.screen.calls)

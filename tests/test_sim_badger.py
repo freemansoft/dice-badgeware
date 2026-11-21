@@ -1,11 +1,124 @@
-"""Run the real app on the Badger 2350 in the badgeware-wasm simulator."""
+"""Run the real app on the Badger 2350 in the badgeware-wasm simulator.
 
+Shades and positions come from apps/dice_roller/display_badger.py. The
+simulator, like the panel, reduces every frame to four greys (0, 85, 170,
+255), so pixels are read as bands. Sequences are run once and shared.
+"""
+
+import json
+
+import dice_layout
+import display_badger as badger
+import pytest
 from simrun import needs_node, simulate
 
 pytestmark = needs_node
 
+W, H = badger.WIDTH, badger.HEIGHT
 
-def test_badger_boots_and_draws(tmp_path):
-    result = simulate("badger", "", tmp_path / "f.json")
-    assert (result["width"], result["height"]) == (264, 176)
-    assert len(result["frames"]) == 1
+# 1 die 1 locked, 2 highlight on die 2, 3 after holding UP (unlock all).
+LOCK = "UP,C,UP:1200"
+
+
+@pytest.fixture(scope="module")
+def run(tmp_path_factory):
+    out_dir = tmp_path_factory.mktemp("sim_badger")
+    results = {}
+
+    def _run(steps, state=None):
+        key = (steps, state)
+        if key not in results:
+            n = len(results)
+            state_path = None
+            if state is not None:
+                state_path = out_dir / f"state{n}.json"
+                state_path.write_text(state)
+            results[key] = simulate("badger", steps, out_dir / f"frames{n}.json", state_path)
+        result = results[key]
+        assert (result["width"], result["height"]) == (W, H)
+        return result
+
+    return _run
+
+
+def shade(frame, x, y):
+    v = max(frame[(y * W + x) * 3:(y * W + x) * 3 + 3])
+    if v < 40:
+        return "black"
+    if v <= 120:
+        return "dark"
+    if v <= 215:
+        return "light"
+    return "white"
+
+
+def slots(count=4):
+    left, top, width, height = badger.DICE_AREA
+    return dice_layout.grid_slots(width, height, count, left, top)
+
+
+def body_shade(frame, i, count=4):
+    """Inside die i's body, left of its text."""
+    cx, cy, half = slots(count)[i]
+    body = half - badger.BODY_INSET
+    return shade(frame, cx - body + 4, cy + body // 2)
+
+
+def box_shade(frame, i, count=4):
+    """Between die i's body and the locked box's edge: grey only when locked."""
+    cx, cy, half = slots(count)[i]
+    return shade(frame, cx, cy - (half - badger.LOCK_INSET) + 2)
+
+
+def dark_pixels(frame, x0, y0, x1, y1):
+    return sum(1 for y in range(y0, y1) for x in range(x0, x1) if shade(frame, x, y) in ("black", "dark"))
+
+
+def labels_shown(frame):
+    bottom = [dark_pixels(frame, x - 25, badger.BAR_TOP + 2, x + 25, H) for x in badger.LABEL_X.values()]
+    side = [dark_pixels(frame, badger.COLUMN_LEFT + 2, y - 12, W, y + 8) for y in badger.LABEL_Y.values()]
+    return all(n >= 5 for n in bottom + side)
+
+
+def test_badger_boots_to_four_white_dice(run):
+    frame = run("")["frames"][0]
+    assert [body_shade(frame, i) for i in range(4)] == ["white"] * 4
+    assert [box_shade(frame, i) for i in range(4)] == ["white"] * 4
+
+
+def test_badger_labels_beside_every_button(run):
+    roll, setup = run("B")["frames"]
+    assert labels_shown(roll)
+    assert labels_shown(setup)
+
+
+def test_badger_lock_draws_grey_box(run):
+    frame = run(LOCK)["frames"][1]
+    assert box_shade(frame, 0) == "light" and body_shade(frame, 0) == "white"
+    assert box_shade(frame, 1) == "white"
+
+
+def test_badger_long_up_unlocks_all(run):
+    frames = run(LOCK)["frames"]
+    assert box_shade(frames[2], 0) == "light"  # still locked before the hold
+    assert [box_shade(frames[3], i) for i in range(4)] == ["white"] * 4
+
+
+def test_badger_setup_header_is_dark_grey(run):
+    roll, setup = run("B")["frames"]
+    assert shade(roll, 4, 4) == "black"
+    assert shade(setup, 4, 4) == "dark"
+
+
+def test_badger_roll_refreshes_once(run):
+    # no animation: one e-ink refresh, straight to the final values
+    # (held 2 s, so a second refresh ~0.8 s later would be counted too)
+    assert run("DOWN:2000")["refreshes"][1] == 1
+
+
+def test_badger_relaunch_restores_the_roll(run):
+    first = run("UP,DOWN")
+    state = first["state"]
+    assert json.loads(state)["locked"][0] is True
+    again = run("", state=state)
+    assert again["frames"][0] == first["frames"][-1]

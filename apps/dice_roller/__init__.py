@@ -17,9 +17,10 @@ import random
 import dice_config
 from dice_app import DiceApp
 from dice_input import STARTUP_IGNORE_MS, InputMapper
+from display_badger import BadgerDisplay
 from display_tufty import TuftyDisplay
 
-DISPLAYS = {"tufty": TuftyDisplay}
+DISPLAYS = {"tufty": TuftyDisplay, "badger": BadgerDisplay}
 
 BUTTONS = {
     BUTTON_A: "A",
