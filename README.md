@@ -19,7 +19,8 @@ writing one display file each (see [Adding a badge](#adding-a-badge)).
 | DOWN | Roll every unlocked die |
 | B | Open the configure screen |
 
-The title bar reads **Roll Baby Roll**, with the total on the right. Every
+The title bar reads **Roll Baby Roll**, with the total on the right; while
+the dice flicker after a roll, the total flickers with them. Every
 die is dark red; locked dice turn grey and are labelled `LOCK`.
 
 ### Configure screen
