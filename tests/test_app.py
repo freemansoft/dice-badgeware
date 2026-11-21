@@ -73,6 +73,7 @@ def test_all_locked_roll_changes_nothing_and_saves_nothing():
     a.apply(LOCK, 1)
     a.apply(RIGHT, 2)
     a.apply(LOCK, 3)
+    a.take_save_point()  # the locks themselves were saved
     before = (a.changes, a.rolled_at, values(a))
     a.box[0] = 6
     a.apply(ROLL, 500)
@@ -184,11 +185,33 @@ def test_save_points_are_rolls_and_accepts_once_each():
     assert a.take_save_point()
 
 
-def test_locks_and_moves_are_not_save_points():
+def test_moves_are_not_save_points():
     a = make()
-    for action in (LOCK, RIGHT, LOCK, UNLOCK_ALL, LEFT):
+    for action in (RIGHT, LEFT, RIGHT):
         a.apply(action, 0)
     assert not a.take_save_point()
+
+
+def test_locks_and_unlocks_are_save_points():
+    # so a badge that sleeps, or is restarted, comes back with the locks
+    # it showed, not those of the last roll
+    a = make()
+    a.apply(LOCK, 0)
+    assert a.take_save_point()
+    a.apply(LOCK, 0)  # unlock
+    assert a.take_save_point()
+    a.apply(LOCK, 0)
+    a.take_save_point()
+    a.apply(UNLOCK_ALL, 0)
+    assert a.take_save_point()
+
+
+def test_unlock_all_with_nothing_locked_changes_nothing():
+    # no save, and no e-ink refresh on the Badger
+    a = make()
+    changes = a.changes
+    a.apply(UNLOCK_ALL, 0)
+    assert not a.take_save_point() and a.changes == changes
 
 
 def test_changes_moves_once_per_visible_change():

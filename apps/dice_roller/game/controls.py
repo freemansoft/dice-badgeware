@@ -32,9 +32,10 @@ LONG_PRESS_MS = 800
 # between frames (the Badger's ~1 s e-ink refresh) can't tell a held
 # button from a second tap, so a gap longer than this restarts the hold.
 MAX_FRAME_GAP_MS = 250
-# The home menu launches an app on a B press; ignore buttons briefly so
-# that press can't open the configure screen. Not after a wake from sleep:
-# then the first press is the one that woke the badge, and it should act.
+# Ignore buttons briefly at launch: the home menu launches an app on a B
+# press, and a badge woken from sleep restarts the app with the waking
+# press. Either way the press was meant for another screen, so it only
+# launches or wakes.
 STARTUP_IGNORE_MS = 400
 
 # Button order within one frame, and what each does on each screen.
@@ -58,8 +59,7 @@ HOLD_LABELS = {
 
 
 class InputMapper:
-    def __init__(self, ignore_ms=STARTUP_IGNORE_MS):
-        self.ignore_ms = ignore_ms
+    def __init__(self):
         self.start = None
         self.last_frame = None
         self.up_pressed_at = None
@@ -70,7 +70,7 @@ class InputMapper:
         frame; held: buttons down now."""
         if self.start is None:
             self.start = now
-        if now - self.start < self.ignore_ms:
+        if now - self.start < STARTUP_IGNORE_MS:
             return []
 
         gap = None if self.last_frame is None else now - self.last_frame

@@ -133,8 +133,8 @@ def test_roll_saves_and_relaunch_restores(entry):
     module, _, state, frame = entry("tufty")
     frame()
     frame(UP)
+    assert state.saved["dice_roller"]["locked"][0] is True  # a lock is saved
     frame()
-    assert state.saved == {}  # a lock alone is not saved
     frame(DOWN)
     saved = state.saved["dice_roller"]
     assert saved["locked"][0] is True and len(saved["values"]) == 6
@@ -144,10 +144,12 @@ def test_roll_saves_and_relaunch_restores(entry):
     assert again.app.dice.dice[0].locked
 
 
-def test_waking_press_is_not_ignored(entry):
-    module, _, _, frame = entry("tufty", woken=True)
-    frame(B)
-    assert module.app.screen == "config_screen"
+def test_waking_press_only_wakes(entry):
+    # the badge may have slept on another screen; a press must not act on
+    # a screen the user wasn't looking at
+    module, _, state, frame = entry("tufty", woken=True)
+    frame(DOWN)
+    assert state.saved == {} and module.app.rolled == []
 
 
 def test_menu_press_is_ignored_at_launch(entry):

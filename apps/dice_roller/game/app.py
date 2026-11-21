@@ -3,8 +3,9 @@ setup being edited. Displays read it; actions change it.
 
 Pure Python, no Badgeware names, and nothing about saving: it starts from
 a record (see saving/record.py), showing the record's last roll if it has
-one, and take_save_point() says when a save is due (after every roll and
-every accept). What gets saved is saving's business.
+one, and take_save_point() says when a save is due: after every roll,
+lock, unlock and accept, so a restart (or a Badger waking from sleep)
+shows what was on screen. What gets saved is saving's business.
 
 `changes` goes up whenever anything visible changes, so a display that
 must not redraw every frame (e-ink) can redraw only when it moves. A roll
@@ -54,7 +55,8 @@ class DiceApp:
             self._new_dice()
 
     def take_save_point(self):
-        """True once after each roll or accept: the moments worth saving."""
+        """True once after each roll, lock, unlock or accept: the moments
+        worth saving."""
         due = self._save_point
         self._save_point = False
         return due
@@ -79,8 +81,12 @@ class DiceApp:
             self.cursor = (self.cursor + 1) % n
         elif action == LOCK:
             self.dice.toggle_lock(self.cursor)
+            self._save_point = True
         elif action == UNLOCK_ALL:
+            if not any(die.locked for die in self.dice.dice):
+                return False
             self.dice.unlock_all()
+            self._save_point = True
         elif action == ROLL:
             rolled = self.dice.roll_unlocked(self.randint)
             if not rolled:

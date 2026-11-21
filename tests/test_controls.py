@@ -80,7 +80,3 @@ def test_label_words():
     assert controls.LABELS[K] == {"A": "Left", "B": "Done", "C": "Right", "UP": "More", "DOWN": "Less"}
     assert controls.HOLD_LABELS == {R: {"UP": "hold: all"}, K: {}}
 
-
-def test_no_ignore_window_when_woken():
-    m = controls.InputMapper(ignore_ms=0)
-    assert m.actions(R, {controls.B}, {controls.B}, 0) == [controls.CONFIGURE]

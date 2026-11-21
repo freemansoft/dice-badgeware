@@ -24,8 +24,3 @@ def held():
     """Buttons down now."""
     return _names(badge.held())
 
-
-def woken_by_button():
-    """True when a button press woke the badge from sleep (so that press,
-    not a menu launch, is the first one the app sees)."""
-    return badge.woken_by_button()

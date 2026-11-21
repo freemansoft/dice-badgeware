@@ -49,29 +49,32 @@ HOME always returns to the Badgeware menu.
 ## Saved setup
 
 The setup and the last roll are saved in `/state/dice_roller.json` on the
-badge, after every roll and every time you press Done on the Setup screen:
+badge, on every badge, after every roll, every lock or unlock, and every
+time you press Done on the Setup screen:
 
 ```json
 { "count": 4, "faces": [6, 6, 6, 6, 6, 6],
   "values": [3, 5, 1, 6, 1, 1], "locked": [false, true, false, false, false, false] }
 ```
 
-When the app starts (or the Badger wakes from sleep) it shows that roll
-again, locks included, instead of rolling fresh. The first launch uses 4
+When the app starts (or the Badger wakes from sleep) it shows those dice
+again, locks included, exactly as they were on screen, instead of rolling
+fresh. The first launch uses 4
 six-sided dice. Each list covers all six dice, so lowering the count and
 raising it again brings dice back as they were. A hand-edited or damaged
 file is repaired on load (values pulled into range, anything unreadable
 replaced by the defaults); an older file without `values` keeps its setup
 and starts with a fresh roll.
 
-Only the state at the last roll is kept. On a restart, HOME or sleep these
-are lost:
+On a restart, HOME or sleep these are not kept:
 
-- changes on the Setup screen before you press Done (the setup comes back
-  as it was at the last Done);
-- locks and unlocks made since the last roll (they come back as they were
-  at that roll);
+- changes on the Setup screen before you press Done (the app comes back
+  on the roll screen with the setup as it was at the last Done);
 - where the highlight was (it starts on the first die).
+
+The press that starts the app or wakes the badge only does that: it
+isn't also taken as Roll, Lock or anything else, since it was meant for
+whatever screen you were looking at before.
 
 ## Install
 
@@ -94,8 +97,9 @@ can be cut short.
 - To unlock all dice, hold UP until the screen has changed twice (the
   first refresh shows the single lock).
 - On battery the badge sleeps after 30 seconds without a press. Any
-  button wakes it where you left off (see [Saved setup](#saved-setup)),
-  and the press that woke it counts.
+  button wakes it where you left off, locks included (see
+  [Saved setup](#saved-setup)); that press only wakes it, so press again
+  to roll.
 
 ## Development
 

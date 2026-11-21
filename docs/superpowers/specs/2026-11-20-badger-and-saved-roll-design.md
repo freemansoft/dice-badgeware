@@ -267,3 +267,27 @@ The same set-up as the Tufty, with a second model:
   as when it calls `blitrgba` or what it does on sleep.
 - How `DiceApp` takes a saved roll (for example an optional argument),
   as long as the core stays free of Badgeware names.
+
+## Revisions after testing on the Badger (2026-11-20)
+
+The final review found that two decisions above combined badly: locks
+were not saved, and the press that woke the badge also acted. Lock some
+dice, let the Badger sleep, press DOWN, and the dice the screen showed as
+locked were rolled; a press that woke a badge asleep on Setup acted on the
+roll screen. The user reversed both, for every badge:
+
+- **Locks are saved.** Lock, unlock and unlock all are save points, as
+  well as every roll and Done. Unlock all with nothing locked changes
+  nothing (no save, no refresh). This supersedes "Locking and unlocking
+  don't save" and the "Between rolls" line under "What is not saved".
+- **The waking press only wakes.** The 400 ms ignore window at launch now
+  applies after a wake too, so the waking press is not taken as an
+  action. This supersedes "The waking press counts" and the
+  `woken_by_button()` exception.
+
+Also from testing: the Badger's button labels are larger (size 19, the
+hold hint 11) and a locked die's grey box fills its slot (an 8 px band),
+with the highlight ring just outside. A long UP press only counts while
+the app watches it: a gap of more than 250 ms between frames (the
+Badger's blocking refresh) restarts it, so a second tap during a refresh
+can't unlock every die.

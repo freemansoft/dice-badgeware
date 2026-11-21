@@ -16,7 +16,7 @@ import random
 
 from devices import buttons, display_for
 from game.app import DiceApp
-from game.controls import STARTUP_IGNORE_MS, InputMapper
+from game.controls import InputMapper
 from saving import store
 from saving.record import snapshot
 
@@ -27,8 +27,7 @@ except Exception:  # noqa: BLE001 - keep MicroPython's own seed
 
 record = store.load()
 app = DiceApp(record, random.randint)
-# after a wake from sleep the first press is the one that woke the badge
-inputs = InputMapper(0 if buttons.woken_by_button() else STARTUP_IGNORE_MS)
+inputs = InputMapper()
 view = display_for(badge.model)
 
 
