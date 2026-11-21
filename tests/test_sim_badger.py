@@ -129,3 +129,40 @@ def test_badger_relaunch_restores_the_roll(run):
     assert json.loads(state)["locked"][0] is True
     again = run("", state=state)
     assert again["frames"][0] == first["frames"][-1]
+
+
+def text_height(frame, x0, y0, x1, y1):
+    """Rows from the top to the bottom of the dark pixels in a box."""
+    rows = [y for y in range(y0, y1) if any(shade(frame, x, y) in ("black", "dark") for x in range(x0, x1))]
+    return max(rows) - min(rows) + 1 if rows else 0
+
+
+def test_badger_labels_are_large(run):
+    # the user found the first labels (~9 px tall) small; there is room
+    frame = run(SCREENS)["frames"][0]
+    bottom = [text_height(frame, x - 25, badger.BAR_TOP + 2, x + 25, H) for x in badger.LABEL_X.values()]
+    roll = text_height(frame, badger.COLUMN_LEFT + 2, badger.LABEL_Y["DOWN"] - 12, W, badger.LABEL_Y["DOWN"] + 12)
+    assert min([*bottom, roll]) >= 12
+
+
+def test_badger_lock_box_is_wide(run):
+    # the user found the first grey band (4 px) hard to see
+    frame = run(SCREENS)["frames"][1]
+    cx, cy, half = slots()[0]
+    band = [y for y in range(cy - half - 6, cy) if shade(frame, cx, y) == "light"]
+    assert len(band) >= 8
+
+
+def ink_rows(frame, x0, y0, x1, y1):
+    rows = [y for y in range(y0, y1) if any(shade(frame, x, y) in ("black", "dark") for x in range(x0, x1))]
+    return min(rows), max(rows)
+
+
+def test_badger_labels_fit_inside_their_bars(run):
+    # big labels must not touch the screen edge or the line above the bar
+    for frame in run(SCREENS)["frames"][::3]:  # the roll screen, then setup
+        for x in badger.LABEL_X.values():
+            top, bottom = ink_rows(frame, x - 30, badger.BAR_TOP + 1, x + 30, H)
+            assert top >= badger.BAR_TOP + 3 and bottom <= H - 3
+        _, bottom = ink_rows(frame, badger.COLUMN_LEFT + 1, badger.LABEL_Y["DOWN"] - 16, W, badger.BAR_TOP)
+        assert bottom <= badger.BAR_TOP - 3

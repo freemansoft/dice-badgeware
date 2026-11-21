@@ -19,10 +19,10 @@ edge, so their labels go beside them):
     | Roll Baby Roll / Setup   total / count |  title bar 0-21
     +--------------------------------+       |
     |                                | Lock  |  UP at y ~58
-    |     dice area 218 x 136        |       |
-    |                                | Roll  |  DOWN at y ~142
+    |     dice area 212 x 132        |       |
+    |                                | Roll  |  DOWN at y ~138
     +--------------------------------+-------+
-    |  Left        Setup        Right        |  158-175
+    |  Left        Setup        Right        |  154-175
     +----------------------------------------+
        A (x 44)    B (x 128)    C (x 212)
 
@@ -38,19 +38,22 @@ from game.layout import grid_slots
 WIDTH = 264
 HEIGHT = 176
 HEADER_H = 22
-BAR_TOP = 158
-COLUMN_LEFT = 218
+BAR_TOP = 154
+COLUMN_LEFT = 212
 DICE_AREA = (0, HEADER_H, COLUMN_LEFT, BAR_TOP - HEADER_H)  # left, top, width, height
 LABEL_X = {A: 44, B: 128, C: 212}   # centred over the buttons below the screen
-LABEL_Y = {UP: 58, DOWN: 142}       # level with the buttons on the right edge
+LABEL_Y = {UP: 58, DOWN: 138}       # level with the buttons on the right edge
+# MonaSans sits low in its measured box, so the bottom labels centre a
+# little above the bar's middle to keep descenders off the screen edge.
+LABEL_BAR_Y = (BAR_TOP + HEIGHT) // 2 - 4
 COLUMN_X = (COLUMN_LEFT + WIDTH) // 2
 RIGHT_EDGE = WIDTH - 6  # right-aligned title-bar items end here
 
 # A die at (cx, cy, half) from grid_slots, from the outside in:
-FRAME_OUT = 1    # highlight ring: outer edge at half + 1 ...
-FRAME_W = 3      # ... and 3 px wide
-LOCK_INSET = 3   # locked: a light-grey box out to half - 3
-BODY_INSET = 7   # the die body: half - 7, a black outline then white
+FRAME_OUT = 4    # highlight ring: outer edge at half + 4 ...
+FRAME_W = 3      # ... and 3 px wide, so it sits just outside the slot
+LOCK_INSET = 0   # locked: a light-grey box filling the slot (to half) ...
+BODY_INSET = 8   # ... around the die body (half - 8): an 8 px grey band
 OUTLINE = 2
 RADIUS = 6
 
@@ -60,8 +63,8 @@ MONA = "/system/assets/fonts/MonaSans-Medium.af"
 TITLE = "Roll Baby Roll"
 SETUP_TITLE = "Setup"
 SIZE_HEADER = 14
-SIZE_LABEL = 13
-SIZE_HOLD = 9
+SIZE_LABEL = 19
+SIZE_HOLD = 11
 SIZE_VALUE = 22
 SIZE_TYPE = 9
 SIZE_FACES = 16
@@ -187,13 +190,12 @@ class BadgerDisplay:
         self._rect(COLUMN_LEFT, HEADER_H, 1, BAR_TOP - HEADER_H, black)
         labels = LABELS[screen_name]
         holds = HOLD_LABELS[screen_name]
-        mid_bar = (BAR_TOP + HEIGHT) // 2
         for button, x in LABEL_X.items():
-            self._centred(labels[button], x, mid_bar, SIZE_LABEL, black)
+            self._centred(labels[button], x, LABEL_BAR_Y, SIZE_LABEL, black)
         for button, y in LABEL_Y.items():
             if button in holds:
-                self._centred(labels[button], COLUMN_X, y - 6, SIZE_LABEL, black)
-                self._centred(holds[button], COLUMN_X, y + 9, SIZE_HOLD, self.pens["dark"])
+                self._centred(labels[button], COLUMN_X, y - 7, SIZE_LABEL, black)
+                self._centred(holds[button], COLUMN_X, y + 11, SIZE_HOLD, self.pens["dark"])
             else:
                 self._centred(labels[button], COLUMN_X, y, SIZE_LABEL, black)
 
