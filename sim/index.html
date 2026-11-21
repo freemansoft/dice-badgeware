@@ -28,7 +28,7 @@ const ctx = canvas.getContext("2d");
 // framebuffer by address; buttons are an active-high bitmask; VBUS reads as
 // connected and the active-low RTC alarm as idle.
 globalThis.blitrgba = (addr, w, h) => {
-  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; canvas.style.aspectRatio = w + " / " + h; }
   const bytes = globalThis.Module.HEAPU8.subarray(addr, addr + w * h * 4);
   ctx.putImageData(new ImageData(new Uint8ClampedArray(bytes), w, h), 0, 0);
 };

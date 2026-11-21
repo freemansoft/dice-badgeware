@@ -16,7 +16,7 @@ from pathlib import Path
 SIM = Path(__file__).resolve().parent
 ROOT = SIM.parent
 DIST = SIM / "dist"
-MODELS = ("tufty",)
+MODELS = ("tufty", "badger")
 APP = "dice_roller"
 
 # The firmware imports its own submodules as __import__(".frozen/badgeware/x"),
@@ -36,6 +36,7 @@ LANDING = """<!doctype html>
 <h1>Dice Roller Simulator</h1>
 <ul>
 <li><a href="tufty/">Tufty 2350</a> (colour LCD, 320x240)</li>
+<li><a href="badger/">Badger 2350</a> (e-ink, 264x176, four greys)</li>
 </ul>
 </body>
 </html>
