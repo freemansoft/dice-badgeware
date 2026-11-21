@@ -1,6 +1,6 @@
 """Draws the dice app on the Badger 2350 (264x176 e-ink, four greys).
 
-The only Badger-specific file. It reads DiceApp's state and draws; it
+The Badger 2350 display. It reads DiceApp's state and draws; it
 never changes it. Unlike the Tufty, the Badger's run() loop only calls
 update(), so this display pushes frames, polls and waits itself:
 
@@ -32,8 +32,8 @@ on white). The simulator tests (tests/test_sim_badger.py) check the
 shades and positions pinned here.
 """
 
-from dice_input import A, B, C, DOWN, HOLD_LABELS, LABELS, ROLL_SCREEN, UP
-from dice_layout import grid_slots
+from game.controls import A, B, C, DOWN, HOLD_LABELS, LABELS, ROLL_SCREEN, UP
+from game.layout import grid_slots
 
 WIDTH = 264
 HEIGHT = 176
@@ -91,7 +91,7 @@ class BadgerDisplay:
         self.layouts = {n: grid_slots(width, height, n, left, top) for n in range(2, 7)}
         self.drawn = None  # app.changes at the last refresh; None until the first
 
-    # -- the display contract (called by __init__.py every frame) -------------
+    # -- the display contract (see devices/__init__.py; called every frame) -------------
 
     def begin_frame(self):
         """Before buttons are read. Nothing to do: end_frame() leaves a fresh

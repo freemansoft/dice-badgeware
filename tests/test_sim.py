@@ -1,6 +1,6 @@
 """Run the real app in the badgeware-wasm simulator (Node) and check pixels.
 
-Colours and positions come from apps/dice_roller/display_tufty.py: every
+Colours and positions come from apps/dice_roller/devices/tufty.py: every
 die is dark red, locked dice grey, labels sit beside the five buttons on
 both screens, the header is dark on the roll screen and blue on the
 configure screen, and the highlighted dice-count field is a white pill.
@@ -13,9 +13,9 @@ five buttons reaches the app.
 """
 
 
-import dice_layout
-import display_tufty as tufty
 import pytest
+from devices import tufty
+from game import layout
 from simrun import needs_node, simulate
 
 pytestmark = needs_node
@@ -57,7 +57,7 @@ def rgb(frame, x, y):
 def probe(count, i):
     """A point inside die i's body that only the body fill covers."""
     left, top, width, height = tufty.DICE_AREA
-    cx, cy, half = dice_layout.grid_slots(width, height, count, left, top)[i]
+    cx, cy, half = layout.grid_slots(width, height, count, left, top)[i]
     return cx - half + 8, cy - half + 8
 
 

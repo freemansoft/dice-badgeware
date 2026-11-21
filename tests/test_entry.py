@@ -93,8 +93,8 @@ def entry(monkeypatch):
         for name, value in fakes.items():
             monkeypatch.setattr(builtins, name, value, raising=False)
         FakeDisplay.events = []
-        monkeypatch.setitem(sys.modules, "display_tufty", types.SimpleNamespace(TuftyDisplay=FakeDisplay))
-        monkeypatch.setitem(sys.modules, "display_badger", types.SimpleNamespace(BadgerDisplay=FakeDisplay))
+        monkeypatch.setitem(sys.modules, "devices.tufty", types.SimpleNamespace(TuftyDisplay=FakeDisplay))
+        monkeypatch.setitem(sys.modules, "devices.badger", types.SimpleNamespace(BadgerDisplay=FakeDisplay))
         spec = importlib.util.spec_from_file_location("dice_roller_entry", ENTRY)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)

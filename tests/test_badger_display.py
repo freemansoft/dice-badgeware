@@ -1,4 +1,4 @@
-"""display_badger.py against a fake badge: when it refreshes the e-ink,
+"""badger.py against a fake badge: when it refreshes the e-ink,
 when it waits for a press, and what it writes.
 
 The refresh-and-wait order matters on the Badger: its run() loop only calls
@@ -9,11 +9,11 @@ checked in the simulator (tests/test_sim_badger.py).
 import builtins
 import types
 
-import dice_app
-import dice_config
-import display_badger
 import pytest
-from dice_input import ROLL
+from devices import badger
+from game.app import DiceApp
+from game.controls import ROLL
+from saving import record
 
 
 class FakeScreen:
@@ -65,17 +65,17 @@ def env(monkeypatch):
 
 def app():
     """Four d6; every roll lands on 3."""
-    return dice_app.DiceApp(dice_config.repair({"count": 4}), lambda lo, hi: 3)
+    return DiceApp(record.repair({"count": 4}), lambda lo, hi: 3)
 
 
 def test_first_frame_refreshes_then_waits(env):
-    d = display_badger.BadgerDisplay()
+    d = badger.BadgerDisplay()
     d.end_frame(app(), 0)
     assert env.calls == ["update", ("wait", 30_000)]
 
 
 def test_no_change_no_refresh(env):
-    d = display_badger.BadgerDisplay()
+    d = badger.BadgerDisplay()
     a = app()
     d.end_frame(a, 0)
     env.calls.clear()
@@ -84,7 +84,7 @@ def test_no_change_no_refresh(env):
 
 
 def test_change_refreshes_once(env):
-    d = display_badger.BadgerDisplay()
+    d = badger.BadgerDisplay()
     a = app()
     d.end_frame(a, 0)
     env.calls.clear()
@@ -94,7 +94,7 @@ def test_change_refreshes_once(env):
 
 
 def test_polls_instead_of_waiting_while_held(env):
-    d = display_badger.BadgerDisplay()
+    d = badger.BadgerDisplay()
     a = app()
     d.end_frame(a, 0)
     env.calls.clear()
@@ -104,7 +104,7 @@ def test_polls_instead_of_waiting_while_held(env):
 
 
 def test_press_seen_by_the_refresh_is_handled_next_frame(env):
-    d = display_badger.BadgerDisplay()
+    d = badger.BadgerDisplay()
     env.pressed = ["A"]  # the poll inside badge.update() saw A
     d.end_frame(app(), 0)
     assert env.calls == ["update"]
@@ -113,6 +113,6 @@ def test_press_seen_by_the_refresh_is_handled_next_frame(env):
 def test_roll_draws_final_values_and_total(env):
     a = app()
     a.apply(ROLL, 0)
-    display_badger.BadgerDisplay().end_frame(a, 0)  # the same instant as the roll
+    badger.BadgerDisplay().end_frame(a, 0)  # the same instant as the roll
     assert [t for t in env.screen.texts if t.isdigit()] == ["3", "3", "3", "3"]
     assert "Total  12" in env.screen.texts

@@ -1,4 +1,4 @@
-import dice
+from game import dice
 
 
 def fixed(v):

@@ -1,4 +1,4 @@
-"""What display_tufty.py writes on the roll screen, against a fake screen.
+"""What devices/tufty.py writes on the roll screen, against a fake screen.
 
 The simulator tests check pixels after the roll animation has ended; these
 check the text drawn during it, which the simulator can't time reliably.
@@ -7,11 +7,11 @@ check the text drawn during it, which the simulator can't time reliably.
 import builtins
 import types
 
-import dice_app
-import dice_config
-import display_tufty as tufty
 import pytest
-from dice_input import LOCK, ROLL
+from devices import tufty
+from game.app import DiceApp
+from game.controls import LOCK, ROLL
+from saving import record
 
 ROLLED_AT = 1000
 REAL = 3     # every roll lands on 3
@@ -56,7 +56,7 @@ def screen(monkeypatch):
 
 def rolled_app():
     """Four d6, the first locked, just rolled at ROLLED_AT."""
-    app = dice_app.DiceApp(dice_config.repair({"count": 4}), lambda lo, hi: REAL)
+    app = DiceApp(record.repair({"count": 4}), lambda lo, hi: REAL)
     app.apply(LOCK, ROLLED_AT)
     app.apply(ROLL, ROLLED_AT)
     return app

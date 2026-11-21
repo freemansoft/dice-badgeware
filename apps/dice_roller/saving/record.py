@@ -1,19 +1,22 @@
-"""The saved dice configuration: defaults, and repair of whatever was read.
+"""The saved record: what is kept between launches, as plain data.
 
-Saved by __init__.py with Badgeware's State helper under STATE_NAME
-(/state/dice_roller.json) as {"count": 2-6, "faces": [six ints 4-20]},
-plus the last roll when there is one: "values" (six ints, each 1 up to
-its slot's faces) and "locked" (six bools). Every list covers all six
+Pure Python, no Badgeware names; saving/store.py reads and writes it on
+the badge (/state/dice_roller.json, via Badgeware's State helper):
+
+    {"count": 2-6, "faces": [six ints 4-20],
+     "values": [six ints, each 1 up to its slot's faces],
+     "locked": [six bools]}
+
+"values" and "locked" hold the last roll and appear together, or not at
+all (an older file, or before the first roll). Every list covers all six
 slots, so dice dropped by lowering the count keep their faces and their
-last roll. Pure Python, no Badgeware names.
+last roll. repair() makes whatever was read valid; snapshot() takes a new
+record from the game at a save point.
 """
 
-from dice import DEFAULT_FACES, MAX_DICE, MAX_FACES, MIN_FACES
+from game.dice import DEFAULT_COUNT, DEFAULT_FACES, MAX_COUNT, MAX_DICE, MAX_FACES, MIN_COUNT, MIN_FACES
 
 STATE_NAME = "dice_roller"
-MIN_COUNT = 2
-MAX_COUNT = MAX_DICE
-DEFAULT_COUNT = 4
 
 
 def defaults():
@@ -49,3 +52,14 @@ def repair(data):
         else:
             repaired["locked"] = [False] * MAX_DICE
     return repaired
+
+
+def snapshot(app, previous):
+    """The record to save now: the game's setup and dice, with any slots
+    beyond the dice in play kept from the previous record."""
+    values = list(previous.get("values", [1] * MAX_DICE))
+    locked = list(previous.get("locked", [False] * MAX_DICE))
+    for i, die in enumerate(app.dice.dice):
+        values[i] = die.value
+        locked[i] = die.locked
+    return {"count": app.count, "faces": list(app.faces), "values": values, "locked": locked}

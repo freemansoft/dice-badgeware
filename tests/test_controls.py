@@ -1,23 +1,23 @@
-import dice_input
+from game import controls
 
-R, K = dice_input.ROLL_SCREEN, dice_input.CONFIG_SCREEN
+R, K = controls.ROLL_SCREEN, controls.CONFIG_SCREEN
 
 
 def started():
-    m = dice_input.InputMapper()
+    m = controls.InputMapper()
     m.actions(R, set(), set(), 0)
     return m
 
 
 def test_launch_press_ignored():
-    m = dice_input.InputMapper()
+    m = controls.InputMapper()
     assert m.actions(R, {"B"}, {"B"}, 0) == []
     assert m.actions(R, {"B"}, {"B"}, 399) == []
-    assert m.actions(R, {"B"}, {"B"}, 400) == [dice_input.CONFIGURE]
+    assert m.actions(R, {"B"}, {"B"}, 400) == [controls.CONFIGURE]
 
 
 def test_up_held_from_launch_never_unlocks_all():
-    m = dice_input.InputMapper()
+    m = controls.InputMapper()
     m.actions(R, {"UP"}, {"UP"}, 0)
     assert all(m.actions(R, set(), {"UP"}, t) == [] for t in range(100, 3000, 100))
 
@@ -64,11 +64,11 @@ def test_same_frame_order():
 
 
 def test_label_words():
-    assert dice_input.LABELS[R] == {"A": "Left", "B": "Setup", "C": "Right", "UP": "Lock", "DOWN": "Roll"}
-    assert dice_input.LABELS[K] == {"A": "Left", "B": "Done", "C": "Right", "UP": "More", "DOWN": "Less"}
-    assert dice_input.HOLD_LABELS == {R: {"UP": "hold: all"}, K: {}}
+    assert controls.LABELS[R] == {"A": "Left", "B": "Setup", "C": "Right", "UP": "Lock", "DOWN": "Roll"}
+    assert controls.LABELS[K] == {"A": "Left", "B": "Done", "C": "Right", "UP": "More", "DOWN": "Less"}
+    assert controls.HOLD_LABELS == {R: {"UP": "hold: all"}, K: {}}
 
 
 def test_no_ignore_window_when_woken():
-    m = dice_input.InputMapper(ignore_ms=0)
-    assert m.actions(R, {dice_input.B}, {dice_input.B}, 0) == [dice_input.CONFIGURE]
+    m = controls.InputMapper(ignore_ms=0)
+    assert m.actions(R, {controls.B}, {controls.B}, 0) == [controls.CONFIGURE]

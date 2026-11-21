@@ -1,6 +1,5 @@
-import dice_app
-import dice_config
-from dice_input import (
+from game.app import DiceApp
+from game.controls import (
     ACCEPT,
     CONFIG_SCREEN,
     CONFIGURE,
@@ -13,12 +12,13 @@ from dice_input import (
     ROLL_SCREEN,
     UNLOCK_ALL,
 )
+from saving import record
 
 
 def make(count=4, faces=None, v=3):
     box = [v]
-    a = dice_app.DiceApp(
-        dice_config.repair({"count": count, "faces": faces or [6] * 6}),
+    a = DiceApp(
+        record.repair({"count": count, "faces": faces or [6] * 6}),
         lambda lo, hi: min(box[0], hi),
     )
     a.box = box
@@ -122,7 +122,7 @@ def test_hidden_dice_keep_faces():
     a.apply(DEC, 2)
     a.apply(ACCEPT, 3)
     assert [d.faces for d in a.dice.dice] == [6, 6, 6]
-    assert a.take_save()["faces"] == [6, 6, 6, 12, 6, 6]
+    assert a.faces == [6, 6, 6, 12, 6, 6]
     a.apply(CONFIGURE, 4)
     a.apply(INC, 5)
     a.apply(ACCEPT, 6)
@@ -153,75 +153,50 @@ def test_accept_uses_new_faces():
     assert [d.faces for d in a.dice.dice] == [7, 6]
 
 
-def test_take_save_once_after_accept():
-    a = make(count=4)
-    assert a.take_save() is None  # a fresh launch roll isn't saved
-    a.apply(CONFIGURE, 3)
-    a.apply(INC, 4)
-    a.apply(ACCEPT, 5)
-    assert a.take_save() == {"count": 5, "faces": [6] * 6, "values": [3] * 5 + [1],
-                             "locked": [False] * 6}
-    assert a.take_save() is None
-
-
 def never(lo, hi):
     raise AssertionError("rolled")
 
 
 def saved_roll(count=3, values=(2, 5, 4, 1, 1, 1), locked=(False, True) + (False,) * 4):
-    return dice_config.repair({"count": count, "faces": [6] * 6,
-                               "values": list(values), "locked": list(locked)})
+    return record.repair({"count": count, "faces": [6] * 6,
+                          "values": list(values), "locked": list(locked)})
 
 
 def test_restores_saved_roll_without_rolling():
-    a = dice_app.DiceApp(saved_roll(), never)
+    a = DiceApp(saved_roll(), never)
     assert values(a) == [2, 5, 4]
     assert [d.locked for d in a.dice.dice] == [False, True, False]
     assert a.rolled == [] and a.rolled_at is None
     assert a.screen == ROLL_SCREEN and a.cursor == 0
 
 
-def test_roll_queues_save_with_values_and_locks():
+def test_save_points_are_rolls_and_accepts_once_each():
     a = make(count=3)
-    a.apply(LOCK, 0)
-    a.box[0] = 5
-    a.apply(ROLL, 10)
-    assert a.take_save() == {"count": 3, "faces": [6] * 6, "values": [3, 5, 5, 1, 1, 1],
-                             "locked": [True, False, False, False, False, False]}
-    assert a.take_save() is None
+    assert not a.take_save_point()  # the launch roll isn't one
+    a.apply(ROLL, 1)
+    assert a.take_save_point()
+    assert not a.take_save_point()
+    a.apply(CONFIGURE, 2)
+    a.apply(INC, 3)
+    assert not a.take_save_point()  # setup edits wait for Done
+    a.apply(ACCEPT, 4)
+    assert a.take_save_point()
 
 
-def test_lock_and_unlock_do_not_save():
+def test_locks_and_moves_are_not_save_points():
     a = make()
     for action in (LOCK, RIGHT, LOCK, UNLOCK_ALL, LEFT):
         a.apply(action, 0)
-    assert a.take_save() is None
+    assert not a.take_save_point()
 
 
-def test_all_locked_roll_does_not_save():
+def test_all_locked_roll_is_not_a_save_point():
     a = make(count=2)
     a.apply(LOCK, 0)
     a.apply(RIGHT, 0)
     a.apply(LOCK, 0)
     a.apply(ROLL, 0)
-    assert a.take_save() is None
-
-
-def test_accept_always_saves_the_new_roll():
-    a = make(count=2)
-    a.apply(LOCK, 0)
-    a.apply(CONFIGURE, 0)
-    a.box[0] = 4
-    a.apply(ACCEPT, 0)
-    saved = a.take_save()
-    assert saved["values"][:2] == [4, 4] and saved["locked"] == [False] * 6
-
-
-def test_hidden_slots_keep_saved_values():
-    a = dice_app.DiceApp(saved_roll(count=2, values=(2, 3, 4, 5, 6, 1), locked=(False,) * 6),
-                         lambda lo, hi: 1)
-    a.apply(ROLL, 0)
-    assert a.take_save()["values"] == [1, 1, 4, 5, 6, 1]
+    assert not a.take_save_point()
 
 
 def test_changes_counter():

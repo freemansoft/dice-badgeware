@@ -1,15 +1,15 @@
 """Run the real app on the Badger 2350 in the badgeware-wasm simulator.
 
-Shades and positions come from apps/dice_roller/display_badger.py. The
+Shades and positions come from apps/dice_roller/badger.py. The
 simulator, like the panel, reduces every frame to four greys (0, 85, 170,
 255), so pixels are read as bands. Sequences are run once and shared.
 """
 
 import json
 
-import dice_layout
-import display_badger as badger
 import pytest
+from devices import badger
+from game import layout
 from simrun import needs_node, simulate
 
 pytestmark = needs_node
@@ -54,7 +54,7 @@ def shade(frame, x, y):
 
 def slots(count=4):
     left, top, width, height = badger.DICE_AREA
-    return dice_layout.grid_slots(width, height, count, left, top)
+    return layout.grid_slots(width, height, count, left, top)
 
 
 def body_shade(frame, i, count=4):

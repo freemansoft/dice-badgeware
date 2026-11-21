@@ -1,20 +1,18 @@
-"""The app's state: which screen is showing, the highlight, the dice and
-the configuration being edited. Displays read it; actions change it.
+"""The game: which screen is showing, the highlight, the dice and the
+setup being edited. Displays read it; actions change it.
 
-Pure Python, no Badgeware names. `changes` goes up whenever anything
-visible changes, so a display that must not redraw every frame (e-ink)
-can redraw only when it moves. A roll changes the values at once and
-records which dice rolled and when; any roll animation is the display's.
+Pure Python, no Badgeware names, and nothing about saving: it starts from
+a record (see saving/record.py), showing the record's last roll if it has
+one, and take_save_point() says when a save is due (after every roll and
+every accept). What gets saved is saving's business.
 
-The last roll is kept: a config with "values" (see dice_config) is shown
-as it was, without rolling, and take_save() hands back the config plus
-the roll after every roll and every accept. Locks, highlight moves and
-unaccepted setup edits are not saved on their own.
+`changes` goes up whenever anything visible changes, so a display that
+must not redraw every frame (e-ink) can redraw only when it moves. A roll
+changes the values at once and records which dice rolled and when; any
+roll animation is the display's.
 """
 
-from dice import MAX_DICE, MAX_FACES, MIN_FACES, DiceSet
-from dice_config import MAX_COUNT, MIN_COUNT
-from dice_input import (
+from game.controls import (
     ACCEPT,
     CONFIG_SCREEN,
     CONFIGURE,
@@ -27,6 +25,7 @@ from dice_input import (
     ROLL_SCREEN,
     UNLOCK_ALL,
 )
+from game.dice import MAX_COUNT, MAX_FACES, MIN_COUNT, MIN_FACES, DiceSet
 
 
 def _clamp(value, low, high):
@@ -34,36 +33,31 @@ def _clamp(value, low, high):
 
 
 class DiceApp:
-    def __init__(self, config, randint):
-        """config: an already repaired {"count", "faces"} dict."""
+    def __init__(self, record, randint):
+        """record: an already repaired saved record ({"count", "faces"},
+        plus "values" and "locked" when it holds a roll)."""
         self.randint = randint
-        self.count = config["count"]
-        self.faces = list(config["faces"])
+        self.count = record["count"]
+        self.faces = list(record["faces"])
         self.screen = ROLL_SCREEN
         self.cursor = 0
         self.changes = 0
         self.rolled = []
         self.rolled_at = None
-        self._pending_save = None
-        # the last roll for all six slots, so hidden dice keep theirs
-        self._values = list(config.get("values", [1] * MAX_DICE))
-        self._locked = list(config.get("locked", [False] * MAX_DICE))
-        if "values" in config:
+        self._save_point = False
+        if "values" in record:
             self.dice = DiceSet(self.faces[: self.count])
             for i, die in enumerate(self.dice.dice):
-                die.value = self._values[i]
-                die.locked = self._locked[i]
+                die.value = record["values"][i]
+                die.locked = record["locked"][i]
         else:
             self._new_dice()
 
-    def config(self):
-        return {"count": self.count, "faces": list(self.faces)}
-
-    def take_save(self):
-        """The config plus the last roll, once, after a roll or an accept."""
-        pending = self._pending_save
-        self._pending_save = None
-        return pending
+    def take_save_point(self):
+        """True once after each roll or accept: the moments worth saving."""
+        due = self._save_point
+        self._save_point = False
+        return due
 
     def apply(self, action, now):
         if self.screen == ROLL_SCREEN:
@@ -72,15 +66,6 @@ class DiceApp:
             changed = self._config_screen(action, now)
         if changed:
             self.changes += 1
-
-    def _queue_save(self):
-        for i, die in enumerate(self.dice.dice):
-            self._values[i] = die.value
-            self._locked[i] = die.locked
-        save = self.config()
-        save["values"] = list(self._values)
-        save["locked"] = list(self._locked)
-        self._pending_save = save
 
     def _new_dice(self):
         self.dice = DiceSet(self.faces[: self.count])
@@ -102,7 +87,7 @@ class DiceApp:
                 return False
             self.rolled = rolled
             self.rolled_at = now
-            self._queue_save()
+            self._save_point = True
         elif action == CONFIGURE:
             self.screen = CONFIG_SCREEN
             self.cursor = 0
@@ -135,4 +120,4 @@ class DiceApp:
         self.rolled_at = now
         self.cursor = 0
         self.screen = ROLL_SCREEN
-        self._queue_save()
+        self._save_point = True
