@@ -30,11 +30,13 @@
 ### Task 1: Full-size dice, grey when locked
 
 **Files:**
+
 - Modify: `apps/dice_roller/devices/badger.py` (die constants, `_die`, sizes, `_draw_roll` label position)
 - Modify: `tests/test_sim_badger.py`
 - Modify: `README.md:27-28`, `docs/superpowers/specs/2026-11-20-badger-and-saved-roll-design.md` (Look table, pointer to the new spec)
 
 **Interfaces:**
+
 - Produces: `badger.LOCK_INSET` and `badger.BODY_INSET` removed; `_die(cx, cy, half, highlighted, locked)` keeps its signature and returns the face's half-size.
 
 - [ ] **Step 1: Change the simulator tests first**

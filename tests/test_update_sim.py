@@ -70,7 +70,8 @@ def test_check_current_returns_0(repo):
     assert update_sim.main(["--check"]) == 0
 
 
-def test_check_newer_build_returns_1(repo, capsys):
+@pytest.mark.usefixtures("repo")
+def test_check_newer_build_returns_1(capsys):
     assert update_sim.main(["--check"]) == 1
     out = capsys.readouterr().out
     assert "run 1" in out and "run 4" in out
@@ -98,7 +99,7 @@ def test_without_gh_returns_2_and_changes_nothing(repo, monkeypatch):
 
 def test_download_missing_files_changes_nothing(repo, monkeypatch):
     before = snapshot(repo.root)
-    monkeypatch.setattr(update_sim, "gh_run", lambda args: None)
+    monkeypatch.setattr(update_sim, "gh_run", lambda _args: None)
     assert update_sim.main([]) == 1
     assert snapshot(repo.root) == before
     assert repo.git_calls == []

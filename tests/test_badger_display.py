@@ -24,11 +24,11 @@ class FakeScreen:
     def measure_text(self, text, size):
         return (len(text) * size // 2, size)
 
-    def text(self, text, x, y, size):
+    def text(self, text, _x, _y, _size):
         self.texts.append(text)
 
     def __getattr__(self, name):  # rectangle, shape, line, clear...: no-ops
-        return lambda *args: None
+        return lambda *_args: None
 
 
 class Env:
@@ -55,7 +55,7 @@ def env(monkeypatch):
         "wait_for_button_or_alarm": lambda timeout: e.calls.append(("wait", timeout)),
         "color": types.SimpleNamespace(rgb=lambda r, g, b: (r, g, b)),
         "shape": types.SimpleNamespace(rounded_rectangle=lambda *a: a, rectangle=lambda *a: a),
-        "font": types.SimpleNamespace(load=lambda path: object(), sins=object()),
+        "font": types.SimpleNamespace(load=lambda _path: object(), sins=object()),
         "image": types.SimpleNamespace(X4=4),
     }
     for name, value in fakes.items():
@@ -65,7 +65,7 @@ def env(monkeypatch):
 
 def app():
     """Four d6; every roll lands on 3."""
-    return DiceApp(record.repair({"count": 4}), lambda lo, hi: 3)
+    return DiceApp(record.repair({"count": 4}), lambda _lo, _hi: 3)
 
 
 def test_first_frame_refreshes_then_waits(env):

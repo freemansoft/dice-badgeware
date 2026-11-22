@@ -1,0 +1,8 @@
+# Lint rules for the whole repo: Pimoroni's own (the file their badge
+# firmware CI uses, identical in vendor/tufty2350 and vendor/badger2350),
+# so the app, tools, tests and simulator all follow the same rules.
+# Needs the submodules: git submodule update --init
+extend = "vendor/tufty2350/ci/ruff.toml"
+
+# The firmware itself is Pimoroni's to lint; sim/dist is a staged copy.
+extend-exclude = ["vendor", "sim/dist", "sim/wasm"]

@@ -53,7 +53,7 @@ class Recorder:
         self.calls = []
 
     def __getattr__(self, name):
-        def record(*args, **kwargs):
+        def record(*args, **_kwargs):
             self.calls.append((name, args))
         return record
 

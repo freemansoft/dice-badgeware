@@ -26,7 +26,7 @@ class FakeScreen:
     def measure_text(self, text, size):
         return (len(text) * size // 2, size)
 
-    def text(self, text, x, y, size):
+    def text(self, text, _x, _y, _size):
         self.texts.append(text)
 
     def rectangle(self, *args):
@@ -41,22 +41,22 @@ def screen(monkeypatch):
     fake = FakeScreen()
     fakes = {
         "screen": fake,
-        "badge": types.SimpleNamespace(mode=lambda m: None, default_clear=None),
+        "badge": types.SimpleNamespace(mode=lambda _m: None, default_clear=None),
         "color": types.SimpleNamespace(rgb=lambda r, g, b: (r, g, b)),
         "shape": types.SimpleNamespace(rounded_rectangle=lambda *a: a),
-        "font": types.SimpleNamespace(load=lambda path: object(), sins=object()),
+        "font": types.SimpleNamespace(load=lambda _path: object(), sins=object()),
         "image": types.SimpleNamespace(X4=4),
         "HIRES": 1,
     }
     for name, value in fakes.items():
         monkeypatch.setattr(builtins, name, value, raising=False)
-    monkeypatch.setattr(tufty, "random", types.SimpleNamespace(randint=lambda lo, hi: FLICKER))
+    monkeypatch.setattr(tufty, "random", types.SimpleNamespace(randint=lambda _lo, _hi: FLICKER))
     return fake
 
 
 def rolled_app():
     """Four d6, the first locked, just rolled at ROLLED_AT."""
-    app = DiceApp(record.repair({"count": 4}), lambda lo, hi: REAL)
+    app = DiceApp(record.repair({"count": 4}), lambda _lo, _hi: REAL)
     app.apply(LOCK, ROLLED_AT)
     app.apply(ROLL, ROLLED_AT)
     return app

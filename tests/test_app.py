@@ -19,7 +19,7 @@ def make(count=4, faces=None, v=3):
     box = [v]
     a = DiceApp(
         record.repair({"count": count, "faces": faces or [6] * 6}),
-        lambda lo, hi: min(box[0], hi),
+        lambda _lo, hi: min(box[0], hi),
     )
     a.box = box
     return a
@@ -155,7 +155,7 @@ def test_accept_uses_new_faces():
     assert [d.faces for d in a.dice.dice] == [7, 6]
 
 
-def never(lo, hi):
+def never(_lo, _hi):
     raise AssertionError("rolled")
 
 
