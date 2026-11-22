@@ -34,7 +34,10 @@ LOCK = "UP,C,UP:1200,DOWN,DOWN"
 @pytest.fixture(scope="module")
 def run(tmp_path_factory):
     """run(steps) -> the frames after each step. Each sequence boots the
-    simulator once; a crash or an error in the app's log fails the test."""
+    simulator once; a crash, an error in the app's log, or a step that
+    draws nothing fails the test. (The Tufty redraws every frame, so a step
+    with no frames pushed means the app stopped drawing; the runner would
+    hand back the last frame again, which the pixel checks can't tell.)"""
     out_dir = tmp_path_factory.mktemp("sim")
     results = {}
 
@@ -43,6 +46,7 @@ def run(tmp_path_factory):
             results[steps] = simulate("tufty", steps, out_dir / f"frames{len(results)}.json")
         result = results[steps]
         assert (result["width"], result["height"]) == (WIDTH, 240)
+        assert all(n >= 1 for n in result["refreshes"]), result["refreshes"]
         return result["frames"]
 
     return _run
@@ -159,3 +163,4 @@ def test_down_rolls_the_dice(run):
     # rolls are given the chance to show a change.
     before, first, second = run(LOCK)[3:]
     assert first != before or second != first
+

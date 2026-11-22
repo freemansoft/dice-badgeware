@@ -141,7 +141,7 @@ apps/dice_roller/        the app (copied to the badge)
     store.py             reading and writing it with Badgeware's State
   devices/               everything badge-specific
     __init__.py          display_for(badge.model)
-    buttons.py           badge buttons -> game names; was it woken by a button?
+    buttons.py           badge buttons -> game names
     tufty.py             Tufty 2350 display (colour, roll animation)
     badger.py            Badger 2350 display (e-ink, four greys, sleep)
     unsupported.py       message for a badge with no display yet
@@ -183,6 +183,11 @@ step, the saved record at the end, and the app's console output.
 `--state` starts the app from a saved record, as after a restart.
 `tests/test_sim.py` and `tests/test_sim_badger.py` check pixels in these
 frames.
+
+The Badger build runs deep on the JavaScript stack, so the headless
+runner restarts Node with a 4 MB stack (Node 18's default overflows).
+Browsers need nothing extra: the Badger page has been checked in Chrome
+(it loads, draws and answers every button with no errors).
 
 The simulator doesn't model sleep, battery power, the e-ink refresh time
 or the real screen's colours, so check those on a badge.

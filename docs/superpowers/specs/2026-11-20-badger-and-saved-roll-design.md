@@ -29,8 +29,8 @@ power-off sleep change two things:
   decision).
   - The saved file holds the setup plus the last roll: each die's value
     and whether it is locked.
-  - It is saved after every roll (the user's decision).
-  - Locking and unlocking don't save.
+  - It is saved after every roll, lock, unlock and Setup → Done (the
+    user's decision; locks were added after testing, see "Revisions").
   - At launch the app shows the saved dice instead of rolling fresh.
 - The Badger version can be tested here in the local simulator, like
   the Tufty.
@@ -57,7 +57,8 @@ power-off sleep change two things:
 ## Approaches (when to save the roll)
 
 The user first picked A, then narrowed it: save after each roll, not
-on lock or unlock. The table shows A as first offered.
+on lock or unlock. After testing on the Badger they went back to A (see
+"Revisions"). The table shows A as first offered.
 
 | | Approach | Trade-off |
 |---|---|---|
@@ -90,14 +91,12 @@ with `faces`:
       becomes 1;
     - each `locked` entry is true only if it is the boolean `true`;
     - a missing `locked` means nothing is locked.
-- **When it is saved (the user's decision):**
-  - After every roll that rolled at least one die. The `locked` list is
-    written as it stands at that roll.
-  - After Setup → Done, which always re-rolls, so it always saves now.
-  - Not on a lock toggle, unlock all, a highlight move, or a Setup edit
-    before Done.
-  - So a lock changed after the last roll is not remembered: after a
-    wake the locks are as they were at that roll.
+- **When it is saved (the user's decision, revised after testing):**
+  - After every roll that rolled at least one die.
+  - After a lock toggle, and after unlock all when something was locked
+    (unlock all with nothing locked changes nothing and doesn't save).
+  - After Setup → Done, which always re-rolls, so it always saves.
+  - Not on a highlight move or a Setup edit before Done.
 - **At launch:** if a saved roll survives repair, the dice show those
   values and locks, on the roll screen, with the highlight on the first
   die and no animation. Otherwise the app rolls fresh.
@@ -107,14 +106,11 @@ with `faces`:
 
 ### What is not saved (documented for users)
 
-Only the state at the last roll is kept. Changes in between are not
-saved (the user's decision). They are lost on a restart, on HOME, or
-when the Badger sleeps:
+The dice and their locks are kept. These are not saved (the user's
+decision) and are lost on a restart, on HOME, or when the Badger sleeps:
 
 - **On the Setup screen:** any change made before Done. The badge comes
   back with the setup as it was at the last Done.
-- **Between rolls:** locks and unlocks made since the last roll. The
-  locks come back as they were at that roll.
 - **The highlight** always comes back on the first die.
 
 The README's "Saved setup" section says this in these terms, next to
@@ -219,15 +215,14 @@ contract:
 - **The long press must still work.** Holding UP for about a second
   unlocks all dice. While any button is held, the display keeps polling
   instead of waiting for a new press, so the 800 ms hold is measured.
-- **The waking press counts.** After a wake, the firmware hands the
-  button that woke the badge to the first poll, so pressing DOWN to
-  wake also rolls.
-  - Today the app ignores buttons for 400 ms after launch, so that the
-    menu's B press can't open Setup. That would swallow the waking
-    press.
-  - So when `badge.woken_by_button()` is true, the ignore window is
-    skipped.
-  - *Claude's call:* the waking press acts, rather than only waking.
+  A gap of more than 250 ms between frames (a refresh) restarts the
+  hold, so a second tap during a refresh can't unlock every die.
+- **The waking press only wakes** (the user's decision, revised after
+  testing). After a wake, the firmware hands the button that woke the
+  badge to the first poll. The app ignores buttons for 400 ms after
+  every launch, from the menu or from a wake, so that press is not
+  taken as an action: the menu's B press can't open Setup, and pressing
+  DOWN to wake doesn't roll.
 - **Sleep timeout:** 30 seconds without a press, the firmware's default.
   *Claude's call.*
 - **No `HIRES` on the Badger.** `badge.mode(HIRES)` is not called there.
@@ -269,6 +264,9 @@ The same set-up as the Tufty, with a second model:
   as long as the core stays free of Badgeware names.
 
 ## Revisions after testing on the Badger (2026-11-20)
+
+The sections above have been updated to match; this records what
+changed and why.
 
 The final review found that two decisions above combined badly: locks
 were not saved, and the press that woke the badge also acted. Lock some
