@@ -103,7 +103,7 @@ def test_bad_locked_means_unlocked(locked):
 
 
 def test_snapshot_takes_the_setup_dice_and_locks():
-    app = DiceApp(record.repair({"count": 3, "faces": [8, 6, 6, 6, 6, 6]}), lambda lo, hi: 3)
+    app = DiceApp(record.repair({"count": 3, "faces": [8, 6, 6, 6, 6, 6]}), lambda _lo, _hi: 3)
     app.dice.dice[1].locked = True
     assert record.snapshot(app, {}) == {"count": 3, "faces": [8, 6, 6, 6, 6, 6],
                                         "values": [3, 3, 3, 1, 1, 1],
@@ -112,7 +112,7 @@ def test_snapshot_takes_the_setup_dice_and_locks():
 
 def test_snapshot_keeps_hidden_slots_from_the_previous_record():
     previous = record.repair({**ROLL, "count": 2, "locked": [False, False, True, False, False, True]})
-    app = DiceApp(previous, lambda lo, hi: 1)
+    app = DiceApp(previous, lambda _lo, _hi: 1)
     app.apply(ROLL_ACTION, 0)
     saved = record.snapshot(app, previous)
     assert saved["values"] == [1, 1, 1, 6, 2, 2]

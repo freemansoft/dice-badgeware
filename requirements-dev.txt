@@ -1,4 +1,4 @@
-pytest
-ruff
-mpy-cross
-mpremote
+pytest==9.2.0
+ruff==0.17.6
+mpy-cross==1.29.0.post2
+mpremote==1.29.0

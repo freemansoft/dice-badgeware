@@ -45,7 +45,7 @@ def _windows_label(drive):
     return buf.value if ok else ""
 
 
-def _ignore_missing(func, path, exc_info):
+def _ignore_missing(_func, _path, exc_info):
     """rmtree error handler. On macOS the badge's FAT drive holds "._"
     companion files that vanish along with their main file, so
     deleting one that's already gone isn't an error."""

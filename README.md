@@ -115,12 +115,21 @@ Using Claude Code? Also install the project's plugins: see
 | Task | Command |
 | --- | --- |
 | All tests (unit + simulator) | `.venv/bin/pytest` |
-| Lint the app with Pimoroni's rules | `.venv/bin/ruff check --config vendor/tufty2350/ci/ruff.toml apps/dice_roller` |
-| Lint tools and tests | `.venv/bin/ruff check tools tests` |
-| Check MicroPython syntax | `find apps/dice_roller -name '*.py' -exec .venv/bin/python -m mpy_cross -o /dev/null {} \;` |
+| Lint everything with Pimoroni's rules | `.venv/bin/ruff check .` |
+| Check MicroPython syntax | `find apps/dice_roller -name '*.py' -print0 \| xargs -0 -n1 .venv/bin/python -m mpy_cross -o /dev/null` |
 | Regenerate the icon | `python3 tools/make_icon.py` |
 
 The simulator tests need Node (18 or later) and are skipped without it.
+
+`ruff.toml` extends the rules Pimoroni lint their own badge firmware with
+(`vendor/tufty2350/ci/ruff.toml`), so it needs the submodules. Unused
+arguments that a fake must keep, to match the real signature, start with
+`_`. There is no formatter: Pimoroni don't use one either.
+
+GitHub Actions (`.github/workflows/ci.yml`) runs the lint, the syntax
+check and every test, simulator included, on each pull request and each
+push to `main`. `requirements-dev.txt` pins the tool versions so a new
+ruff release can't fail a build on its own.
 
 ### Project layout
 
@@ -153,6 +162,8 @@ tools/make_icon.py       regenerate icon.png
 tools/update_sim.py      check for and pull newer simulator builds and firmware
 vendor/                  Pimoroni's Tufty and Badger firmware (git submodules)
 docs/superpowers/        designs and implementation plans
+ruff.toml                lint rules (extends Pimoroni's)
+.github/workflows/ci.yml lint, syntax check and tests on every PR
 ```
 
 ### Simulator

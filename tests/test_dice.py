@@ -6,7 +6,7 @@ from game import dice
 
 
 def fixed(v):
-    return lambda lo, hi: v
+    return lambda _lo, _hi: v
 
 
 def test_die_roll_uses_one_to_faces():
