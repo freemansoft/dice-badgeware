@@ -166,8 +166,9 @@ def test_saved_config_is_loaded_and_repaired(entry):
 
 def test_saves_keep_the_dice_beyond_the_count(entry):
     # Lowering the count and pressing Done saves; the four dice put away
-    # keep their last roll from the loaded record, so raising the count
-    # later brings them back.
+    # keep their values from the loaded record in the file. (Raising the
+    # count again and pressing Done re-rolls every die, so those values
+    # are kept, not shown.)
     saved = {"count": 6, "faces": [6] * 6, "values": [1, 2, 3, 4, 5, 6], "locked": [False] * 6}
     _, _, state, frame = entry("tufty", saved={"dice_roller": saved})
     frame()  # launch: presses are ignored for the first 400 ms
