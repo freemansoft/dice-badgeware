@@ -1,6 +1,6 @@
-# Lint, MicroPython syntax check and every test (host and simulator) on
-# each pull request and each push to main. The same commands as the
-# README's "Task | Command" table.
+# Lint, MicroPython syntax check, every test (host and simulator) and the
+# Markdown format check on each pull request and each push to main. The
+# same commands as the README's "Task | Command" table.
 name: CI
 
 on:
@@ -37,3 +37,9 @@ jobs:
 
       - name: Tests (host and simulator)
         run: pytest
+
+      # The same check as .githooks/pre-commit, for everyone: committed
+      # Markdown (git ls-files skips the vendor/ submodules) must be
+      # prettier-formatted. Keep the version in step with the hook.
+      - name: Markdown formatting (prettier)
+        run: git ls-files -z '*.md' | xargs -0 npx --yes prettier@3.9.10 --config .prettierrc.json --check

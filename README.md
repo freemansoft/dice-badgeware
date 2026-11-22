@@ -111,6 +111,7 @@ can be cut short.
 git submodule update --init          # vendor/: Pimoroni's Tufty and Badger firmware, pinned to a release
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
+git config core.hooksPath .githooks  # pre-commit: block unformatted Markdown
 ```
 
 Using Claude Code? Also install the project's plugins: see
@@ -121,6 +122,7 @@ Using Claude Code? Also install the project's plugins: see
 | All tests (unit + simulator)          | `.venv/bin/pytest`                                                                                      |
 | Lint everything with Pimoroni's rules | `.venv/bin/ruff check .`                                                                                |
 | Check MicroPython syntax              | `find apps/dice_roller -name '*.py' -print0 \| xargs -0 -n1 .venv/bin/python -m mpy_cross -o /dev/null` |
+| Format Markdown                       | `git ls-files -z '*.md' \| xargs -0 npx --yes prettier@3.9.10 --write`                                  |
 | Regenerate the icon                   | `python3 tools/make_icon.py`                                                                            |
 
 The simulator tests need Node (18 or later) and are skipped without it.
@@ -128,11 +130,17 @@ The simulator tests need Node (18 or later) and are skipped without it.
 `ruff.toml` extends the rules Pimoroni lint their own badge firmware with
 (`vendor/tufty2350/ci/ruff.toml`), so it needs the submodules. Unused
 arguments that a fake must keep, to match the real signature, start with
-`_`. There is no formatter: Pimoroni don't use one either.
+`_`. Python has no formatter: Pimoroni don't use one either.
+
+Markdown is formatted with prettier (pinned version, settings in
+`.prettierrc.json`, as in claude-buddy-badgeware). The pre-commit hook in
+`.githooks/` blocks commits whose staged `.md` files aren't formatted and
+prints the command to fix them. It needs Node; turn it on once per clone
+with the `git config` line above.
 
 GitHub Actions (`.github/workflows/ci.yml`) runs the lint, the syntax
-check and every test, simulator included, on each pull request and each
-push to `main`. `requirements-dev.txt` pins the tool versions so a new
+check, every test (simulator included) and the Markdown check on each
+pull request and each push to `main`. `requirements-dev.txt` pins the tool versions so a new
 ruff release can't fail a build on its own.
 
 ### Project layout
@@ -167,6 +175,7 @@ tools/update_sim.py      check for and pull newer simulator builds and firmware
 vendor/                  Pimoroni's Tufty and Badger firmware (git submodules)
 docs/superpowers/        designs and implementation plans
 ruff.toml                lint rules (extends Pimoroni's)
+.githooks/pre-commit     block commits of unformatted Markdown (prettier)
 .github/workflows/ci.yml lint, syntax check and tests on every PR
 ```
 
