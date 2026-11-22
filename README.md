@@ -184,6 +184,11 @@ step, the saved record at the end, and the app's console output.
 `tests/test_sim.py` and `tests/test_sim_badger.py` check pixels in these
 frames.
 
+The Badger build runs deep on the JavaScript stack, so the headless
+runner restarts Node with a 4 MB stack (Node 18's default overflows).
+Browsers need nothing extra: the Badger page has been checked in Chrome
+(it loads, draws and answers every button with no errors).
+
 The simulator doesn't model sleep, battery power, the e-ink refresh time
 or the real screen's colours, so check those on a badge.
 
