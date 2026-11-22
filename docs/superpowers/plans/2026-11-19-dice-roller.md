@@ -37,10 +37,12 @@
 ### Task 1: Tooling and `dice.py`
 
 **Files:**
+
 - Create: `.gitignore`, `requirements-dev.txt`, `apps/dice_roller/dice.py`, `tests/conftest.py`, `tests/test_dice.py`
 - Create (submodule): `vendor/tufty2350` at tag `v3.1.1`
 
 **Interfaces:**
+
 - Produces: `dice.MIN_FACES = 4`, `MAX_FACES = 20`, `DEFAULT_FACES = 6`, `MAX_DICE = 6`; `class Die(faces: int, value: int = 1)` with attributes `faces`, `value`, `locked` (False), `roll(randint) -> bool`, `toggle_lock() -> None`; `class DiceSet(faces_list: list[int])` with `dice: list[Die]`, `__len__`, `roll_unlocked(randint) -> list[int]` (indices rolled, ascending), `toggle_lock(index) -> None`, `unlock_all() -> None`, `total() -> int`. `randint(lo, hi)` is inclusive like `random.randint`.
 - `tests/conftest.py` puts `apps/dice_roller` on `sys.path` so tests `import dice` etc.
 
@@ -102,6 +104,7 @@ def test_total_and_len():
 **Files:** Create `apps/dice_roller/dice_config.py`, `tests/test_dice_config.py`
 
 **Interfaces:**
+
 - Consumes: `dice.MIN_FACES`, `MAX_FACES`, `DEFAULT_FACES`, `MAX_DICE`.
 - Produces: `STATE_NAME = "dice_roller"`, `MIN_COUNT = 2`, `MAX_COUNT = 6`, `DEFAULT_COUNT = 4`, `defaults() -> dict` (a fresh `{"count": 4, "faces": [6]*6}` each call), `repair(data) -> dict` (always a new valid dict, never raises, never mutates `data`).
 
@@ -138,6 +141,7 @@ def test_input_not_mutated(): d = {"count": 0, "faces": [1]}; dice_config.repair
 **Files:** Create `apps/dice_roller/dice_layout.py`, `tests/test_dice_layout.py`
 
 **Interfaces:**
+
 - Produces: `grid_slots(width: int, height: int, count: int) -> list[tuple[int, int, int]]`: `count` (2–6) `(cx, cy, half)` tuples in reading order, spread evenly with the home menu's spacing (160×120 menu: columns 48 px apart, rows at y 42/90, half-size 20) scaled to fit.
 
 Rows: `count <= 3` → one row of `count`; otherwise top row `(count + 1) // 2`, bottom row `count // 2`.
@@ -180,6 +184,7 @@ def test_every_count_fits_below_header():
 **Files:** Create `apps/dice_roller/dice_input.py`, `tests/test_dice_input.py`
 
 **Interfaces:**
+
 - Produces:
   - Button names: `A = "A"`, `B = "B"`, `C = "C"`, `UP = "UP"`, `DOWN = "DOWN"`.
   - Screens: `ROLL_SCREEN = "roll_screen"`, `CONFIG_SCREEN = "config_screen"`.
@@ -188,6 +193,7 @@ def test_every_count_fits_below_header():
   - `class InputMapper()` with `actions(screen: str, pressed: set, held: set, now: int) -> list[str]`. `pressed` = buttons that went down this frame; `held` = buttons down now.
 
 Rules:
+
 - The first call records `now` as the start. Until `now - start >= STARTUP_IGNORE_MS`, return `[]` and record nothing (a button down from launch never starts a long press).
 - Roll screen: A→LEFT, C→RIGHT, UP pressed→LOCK, DOWN→ROLL, B→CONFIGURE. Config screen: A→LEFT, C→RIGHT, UP→INC, DOWN→DEC, B→ACCEPT.
 - Several presses in one frame: actions in button order A, C, UP, DOWN, B, then any UNLOCK_ALL.
@@ -254,10 +260,12 @@ def test_same_frame_order():
 **Files:** Create `apps/dice_roller/dice_app.py`, `tests/test_dice_app.py`
 
 **Interfaces:**
+
 - Consumes: `dice.DiceSet`, `dice` and `dice_config` limits, `dice_input` screen and action constants.
 - Produces: `class DiceApp(config: dict, randint)` where `config` is already repaired. Attributes read by displays: `screen`, `cursor`, `count`, `faces` (list of 6), `dice` (DiceSet), `changes` (int), `rolled` (list of indices), `rolled_at` (int or None). Methods: `apply(action: str, now: int) -> None`, `config() -> dict` (`{"count", "faces"}` copy), `take_save() -> dict | None`.
 
 Behaviour:
+
 - Init: copy count and faces; `dice = DiceSet(faces[:count])`; roll all; `rolled = []`, `rolled_at = None`; `screen = ROLL_SCREEN`; `cursor = 0`; `changes = 0`; remember `config()` as the saved snapshot.
 - Roll screen: LEFT/RIGHT move `cursor` modulo `len(dice)`; LOCK toggles `dice[cursor]`; UNLOCK_ALL unlocks all; ROLL rolls unlocked and, only if any rolled, sets `rolled`/`rolled_at = now`; CONFIGURE → config screen, `cursor = 0`.
 - Config screen: `cursor` 0 = count field, `k` ≥ 1 = die `k - 1`; LEFT/RIGHT modulo `count + 1`; INC/DEC on 0 change count clamped 2–6, on `k` change `faces[k-1]` clamped 4–20; ACCEPT: if `config()` differs from the snapshot, queue it for `take_save()` and update the snapshot; rebuild `dice` from `faces[:count]`, roll all, `rolled = list(range(count))`, `rolled_at = now`, `cursor = 0`, back to roll screen.
@@ -349,9 +357,11 @@ def test_changes_counter():
 ### Task 6: Tufty display, entry point and icon
 
 **Files:**
+
 - Create: `apps/dice_roller/display_tufty.py`, `apps/dice_roller/__init__.py`, `tools/make_icon.py`, `apps/dice_roller/icon.png`, `tests/test_make_icon.py`
 
 **Interfaces:**
+
 - Consumes: `DiceApp` attributes (Task 5), `dice_layout.grid_slots`, `dice_input` constants, `dice_config.STATE_NAME/defaults/repair`.
 - Produces (pinned for the simulator tests in Task 7):
   - `display_tufty.TuftyDisplay()` — sets `badge.mode(HIRES)`; `needs_redraw(app, now) -> True`; `draw(app, now) -> None`.
@@ -362,6 +372,7 @@ def test_changes_counter():
   - Configure screen: `DICE n` in the header (highlight box around it when `cursor == 0`), each die body labelled `d<faces>`, highlight ring on die `cursor - 1`, hints `UP/DOWN change  B done`.
 
 `__init__.py` (no tests of its own; covered by Task 7):
+
 - Seed `random` from `os.urandom(4)` inside `try`.
 - `BUTTONS = {BUTTON_A: "A", BUTTON_B: "B", BUTTON_C: "C", BUTTON_UP: "UP", BUTTON_DOWN: "DOWN"}`; `DISPLAYS = {"tufty": TuftyDisplay}`.
 - `config = dice_config.defaults(); State.load(dice_config.STATE_NAME, config); config = dice_config.repair(config)`.
@@ -384,6 +395,7 @@ def test_changes_counter():
 **Files:** Create `tools/update_sim.py`, `tests/test_update_sim.py`; fetched and committed: `sim/wasm/tufty/micropython.mjs`, `sim/wasm/tufty/micropython.wasm`, `sim/wasm/VERSION.json`
 
 **Interfaces:**
+
 - Produces (stdlib only; every `gh` call goes through `gh_json`/`gh_run` so tests can replace them; module-level `ROOT` = repo root, which tests monkeypatch):
   - `gh_json(args: list[str]) -> object` — runs `gh <args>`, parses stdout as JSON. `gh_run(args: list[str]) -> None` — runs `gh <args>`, raises on failure.
   - `latest_build_run(runs: list[dict]) -> dict | None` — newest (`createdAt`) run with `workflowName == "build"`, `headBranch == "main"`, `conclusion == "success"`; input from `gh run list -R pimoroni/badgeware-wasm --json databaseId,headSha,headBranch,workflowName,conclusion,createdAt --limit 30`.
@@ -416,6 +428,7 @@ def test_artifact_name(): assert update_sim.artifact_name("tufty") == "badgeware
 ```
 
 Plus three `main` tests against a temp `ROOT` (with `sim/wasm/VERSION.json` and `sim/wasm/tufty/` fixtures) and stubbed `gh_json` (returns `RUNS` or `RELEASES` by the repo argument) and `gh_run`:
+
 - `test_check_current_returns_0`: VERSION pins run 4 and `v3.1.1` → 0.
 - `test_check_newer_returns_1`: VERSION pins run 1 → 1, and stdout contains `1` and `4`.
 - `test_download_missing_files_changes_nothing`: `gh_run` stub creates nothing → returns 1; `VERSION.json` and `sim/wasm/tufty/` unchanged.
@@ -431,6 +444,7 @@ Plus three `main` tests against a temp `ROOT` (with `sim/wasm/VERSION.json` and 
 **Files:** Create `sim/stage.py`, `sim/boot.py`, `sim/stubs/powman.py`, `sim/stubs/pcf85063a.py`, `sim/index.html`, `sim/run_headless.mjs`, `tests/test_sim.py`. Reference only (don't copy wholesale): `../MoodBadger2350/sim/`, and badgeware-wasm's `host/index.html` and README for the host contract.
 
 **Interfaces:**
+
 - Consumes: `sim/wasm/tufty/*` and `VERSION.json` (Task 7), `vendor/tufty2350` (Task 1), the app (Task 6), `dice_layout.grid_slots`.
 - Host contract (badgeware-wasm): the page provides `blitrgba(addr, w, h)` (RGBA framebuffer in `Module.HEAPU8`), `sim_buttons()` (active-high bitmask: HOME 0x20, A 0x10, B 0x08, C 0x04, UP 0x02, DOWN 0x01), `sim_gpio_get(gpio)` (return 1 for VBUS_DETECT 12 and RTC_ALARM 13, else null).
 - `python3 sim/stage.py` → `sim/dist/tufty/` holding the wasm build, `index.html`, `boot.py` and `fs/` with `fs/manifest.json` (list of `[device path, file under fs/]`), plus `sim/dist/index.html` linking to it. Staged trees: `vendor/tufty2350/modules/common/badgeware` → `/frozen/badgeware` (rewrite `__import__(".frozen/` to `__import__("/frozen/` in staged copies only; fail if none found), `vendor/tufty2350/romfs/fonts` → `/rom/fonts`, `apps/dice_roller` → `/system/apps/dice_roller`, `sim/stubs` → `/lib`. Skip `__pycache__` and dotfiles.
@@ -486,6 +500,7 @@ def test_rolling_does_not_error():
 **Files:** Create `tools/install.py`, `tests/test_install.py`, `README.md`
 
 **Interfaces:**
+
 - `tools/install.py`: port `../claude-buddy-badgeware/tools/install.py` with `APP = "dice_roller"`; same flags (`--dest`, `--no-eject`), same drive detection (`apps/` and `main.py` at the drive root; labels include `TUFTY`); copies `apps/dice_roller/` to `<drive>/apps/dice_roller/`, skipping `__pycache__`.
 
 - [ ] **Step 1: Failing test** `tests/test_install.py`: make a fake drive in `tmp_path` (`apps/`, `main.py`), run `main` with `["--dest", str(tmp_path), "--no-eject"]` (patch `sys.argv`) → every `.py` and `icon.png` from `apps/dice_roller` exists under `tmp_path/apps/dice_roller`, and no `__pycache__` does. Run → FAIL.

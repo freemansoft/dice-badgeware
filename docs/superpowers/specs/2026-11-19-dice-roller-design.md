@@ -80,42 +80,42 @@ One sensible way, so no real alternatives were weighed:
 ### Roll screen (start screen)
 
 Shows the configured dice spread evenly, with the home menu's
-spacing (*Claude's call*, as the user allowed either even spacing or
+spacing (_Claude's call_, as the user allowed either even spacing or
 fixed slots):
 
-| Dice | Rows |
-|---|---|
-| 2 | one row of 2, centred |
-| 3 | one row of 3, centred |
-| 4 | 2 on top, 2 below |
-| 5 | 3 on top, 2 below |
-| 6 | 3 on top, 3 below |
+| Dice | Rows                  |
+| ---- | --------------------- |
+| 2    | one row of 2, centred |
+| 3    | one row of 3, centred |
+| 4    | 2 on top, 2 below     |
+| 5    | 3 on top, 2 below     |
+| 6    | 3 on top, 3 below     |
 
 Dice are numbered in reading order (left to right, top row first);
 A and C step through that order. The configure screen uses the same
 positions for its die squares.
 
-| Button | Action |
-|---|---|
-| A | Move highlight left; wraps from first die to last, and across rows |
-| C | Move highlight right; wraps from last die to first, and across rows |
-| UP (press) | Lock the highlighted die. *Claude's call:* if it is already locked, unlock it |
-| UP (hold) | Unlock all dice |
-| DOWN | Roll every unlocked die |
-| B | Open the configure screen |
+| Button     | Action                                                                        |
+| ---------- | ----------------------------------------------------------------------------- |
+| A          | Move highlight left; wraps from first die to last, and across rows            |
+| C          | Move highlight right; wraps from last die to first, and across rows           |
+| UP (press) | Lock the highlighted die. _Claude's call:_ if it is already locked, unlock it |
+| UP (hold)  | Unlock all dice                                                               |
+| DOWN       | Roll every unlocked die                                                       |
+| B          | Open the configure screen                                                     |
 
 ### Configure screen
 
 A "number of dice" field, then one square per die showing its faces
 (`d6`, `d20`, …).
 
-| Button | Action |
-|---|---|
-| A | Move highlight left, wrapping across the count field and the die squares |
-| C | Move highlight right, same wrapping |
-| UP | Increase the highlighted value |
-| DOWN | Decrease the highlighted value |
-| B | Accept and return to the roll screen |
+| Button | Action                                                                   |
+| ------ | ------------------------------------------------------------------------ |
+| A      | Move highlight left, wrapping across the count field and the die squares |
+| C      | Move highlight right, same wrapping                                      |
+| UP     | Increase the highlighted value                                           |
+| DOWN   | Decrease the highlighted value                                           |
+| B      | Accept and return to the roll screen                                     |
 
 Ranges: count 2–6, faces 4–20, any whole number.
 
@@ -130,13 +130,13 @@ positions were confirmed on hardware by MoodBadger2350; B is midway;
 UP and DOWN are estimated from Pimoroni's product photo and need a check
 on the badge.
 
-| Button | Roll screen | Configure screen |
-|---|---|---|
-| A | Left | Left |
-| B | Setup | Done |
-| C | Right | Right |
-| UP | Lock (with "hold: all") | More |
-| DOWN | Roll | Less |
+| Button | Roll screen             | Configure screen |
+| ------ | ----------------------- | ---------------- |
+| A      | Left                    | Left             |
+| B      | Setup                   | Done             |
+| C      | Right                   | Right            |
+| UP     | Lock (with "hold: all") | More             |
+| DOWN   | Roll                    | Less             |
 
 The label text lives with the button mapping in `dice_input.py`, so
 every badge uses the same words; where they go is the display's job.
@@ -159,7 +159,7 @@ Saved with Badgeware's built-in `State` helper under the name
 `dice_roller`, which writes `/state/dice_roller.json`:
 
 ```json
-{"count": 4, "faces": [6, 6, 6, 6, 6, 6]}
+{ "count": 4, "faces": [6, 6, 6, 6, 6, 6] }
 ```
 
 - `count`: number of dice in use, 2–6.
@@ -169,10 +169,10 @@ Saved with Badgeware's built-in `State` helper under the name
 - Loaded once at startup with `State.load`; defaults are 4 dice, all
   d6. A missing or unreadable file falls back to the defaults (`State`
   handles that).
-- *Claude's call:* values read from the file are repaired, not
+- _Claude's call:_ values read from the file are repaired, not
   trusted: `count` clamped to 2–6, `faces` padded or trimmed to six
   entries, each clamped to 4–20, anything non-numeric replaced by 6.
-- *Claude's call:* saved only when B accepts on the configure screen,
+- _Claude's call:_ saved only when B accepts on the configure screen,
   and only if something changed.
 - The file is the same on every badge.
 
@@ -255,13 +255,13 @@ badge with no display file yet gets a fallback that shows a short
 
 ### What later badges would need
 
-| | Tufty 2350 (now) | Badger 2350 (later) | Blinky 2350 (later) |
-|---|---|---|---|
-| Screen | 320×240 colour (HIRES) | 264×176, black, white, 2 greys | 39×26 white LEDs |
-| Layout | Even rows, menu spacing scaled 2× | Same rows scaled to fit | Own layout: 13×13 cells, tiny pixel font, header dropped |
-| Redraw | Every frame | Only on a change | Every frame |
-| Roll animation | Flicker ~500 ms | None | Short flicker |
-| Locked look | Muted colour + lock tag | Grey fill | Dim cell |
+|                | Tufty 2350 (now)                  | Badger 2350 (later)            | Blinky 2350 (later)                                      |
+| -------------- | --------------------------------- | ------------------------------ | -------------------------------------------------------- |
+| Screen         | 320×240 colour (HIRES)            | 264×176, black, white, 2 greys | 39×26 white LEDs                                         |
+| Layout         | Even rows, menu spacing scaled 2× | Same rows scaled to fit        | Own layout: 13×13 cells, tiny pixel font, header dropped |
+| Redraw         | Every frame                       | Only on a change               | Every frame                                              |
+| Roll animation | Flicker ~500 ms                   | None                           | Short flicker                                            |
+| Locked look    | Muted colour + lock tag           | Grey fill                      | Dim cell                                                 |
 
 None of this needs changes outside a new `display_<badge>.py` and one
 line in `__init__.py`'s table. Badger's usual "sleep between updates"
@@ -274,8 +274,7 @@ is out of scope; the app stays awake while open.
   toggle happens on press, so a hold first toggles the highlighted die
   and then unlocks everything; the end state is "all unlocked" either
   way, and short presses have no delay.
-- **Values clamp at the ends** (count stops at 2 and 6, faces at 4 and
-  20) rather than wrapping, so you can't jump from d4 to d20 by
+- **Values clamp at the ends** (count stops at 2 and 6, faces at 4 and 20) rather than wrapping, so you can't jump from d4 to d20 by
   accident.
 - **New dice default to 6 faces.** Dice dropped by lowering the count
   keep their faces (they stay in the saved `faces` array), so raising

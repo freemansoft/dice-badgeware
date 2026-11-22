@@ -13,13 +13,13 @@ per badge, so the Blinky 2350 can be added later (see
 
 ### Roll screen (where the app starts)
 
-| Button | Action |
-| --- | --- |
-| A / C | Move the highlight left / right; wraps across both rows |
-| UP | Lock the highlighted die (press again to unlock it) |
-| UP, held about a second | Unlock all dice |
-| DOWN | Roll every unlocked die |
-| B | Open the configure screen |
+| Button                  | Action                                                  |
+| ----------------------- | ------------------------------------------------------- |
+| A / C                   | Move the highlight left / right; wraps across both rows |
+| UP                      | Lock the highlighted die (press again to unlock it)     |
+| UP, held about a second | Unlock all dice                                         |
+| DOWN                    | Roll every unlocked die                                 |
+| B                       | Open the configure screen                               |
 
 The title bar reads **Roll Baby Roll**, with the total on the right; while
 the dice flicker after a roll, the total flickers with them. Every
@@ -31,11 +31,11 @@ grey.
 
 The title bar reads **Setup**, with the dice count on the right.
 
-| Button | Action |
-| --- | --- |
-| A / C | Move between the dice count and each die |
-| UP / DOWN | Increase / decrease what is highlighted |
-| B | Accept and go back to rolling (a fresh roll, all dice unlocked) |
+| Button    | Action                                                          |
+| --------- | --------------------------------------------------------------- |
+| A / C     | Move between the dice count and each die                        |
+| UP / DOWN | Increase / decrease what is highlighted                         |
+| B         | Accept and go back to rolling (a fresh roll, all dice unlocked) |
 
 A label next to each button always shows what it does: A, B and C are
 labelled along the bottom of the screen, UP and DOWN down its right edge.
@@ -53,8 +53,12 @@ badge, on every badge, after every roll, every lock or unlock, and every
 time you press Done on the Setup screen:
 
 ```json
-{ "count": 4, "faces": [6, 6, 6, 6, 6, 6],
-  "values": [3, 5, 1, 6, 1, 1], "locked": [false, true, false, false, false, false] }
+{
+  "count": 4,
+  "faces": [6, 6, 6, 6, 6, 6],
+  "values": [3, 5, 1, 6, 1, 1],
+  "locked": [false, true, false, false, false, false]
+}
 ```
 
 When the app starts (or the Badger wakes from sleep) it shows those dice
@@ -112,12 +116,12 @@ python3 -m venv .venv
 Using Claude Code? Also install the project's plugins: see
 [Claude Code](#claude-code).
 
-| Task | Command |
-| --- | --- |
-| All tests (unit + simulator) | `.venv/bin/pytest` |
-| Lint everything with Pimoroni's rules | `.venv/bin/ruff check .` |
-| Check MicroPython syntax | `find apps/dice_roller -name '*.py' -print0 \| xargs -0 -n1 .venv/bin/python -m mpy_cross -o /dev/null` |
-| Regenerate the icon | `python3 tools/make_icon.py` |
+| Task                                  | Command                                                                                                 |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| All tests (unit + simulator)          | `.venv/bin/pytest`                                                                                      |
+| Lint everything with Pimoroni's rules | `.venv/bin/ruff check .`                                                                                |
+| Check MicroPython syntax              | `find apps/dice_roller -name '*.py' -print0 \| xargs -0 -n1 .venv/bin/python -m mpy_cross -o /dev/null` |
+| Regenerate the icon                   | `python3 tools/make_icon.py`                                                                            |
 
 The simulator tests need Node (18 or later) and are skipped without it.
 
@@ -238,6 +242,7 @@ The Tufty and Badger are done; the Blinky 2350 is next.
      only when `app.changes` has moved, then waits for the next press.
 
    Read `tufty.py` for what `app` provides.
+
 2. Add it to `display_for()` in `apps/dice_roller/devices/__init__.py`.
 3. For the simulator: `git submodule add https://github.com/pimoroni/<model>2350 vendor/<model>2350`,
    run `python3 tools/update_sim.py --models tufty,badger,<model>`, and add
@@ -250,10 +255,10 @@ The project uses two Claude Code plugins. They are not stored in this
 repository; `.claude/settings.json` names them, and Claude Code fetches
 them from GitHub:
 
-| Plugin | From |
-|---|---|
+| Plugin                                                             | From                                                                            |
+| ------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
 | `superpowers` (brainstorming, planning, TDD, code review and more) | [obra/superpowers-marketplace](https://github.com/obra/superpowers-marketplace) |
-| `skill-creator` | Anthropic's official marketplace, `claude-plugins-official` |
+| `skill-creator`                                                    | Anthropic's official marketplace, `claude-plugins-official`                     |
 
 Set them up once per clone, from the repository folder:
 

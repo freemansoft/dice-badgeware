@@ -12,11 +12,11 @@ inside it is kept for the locked die's grey box, on every die.
 
 ## Approaches
 
-| | Locked die | Die size | Trade-off |
-|---|---|---|---|
-| A | Grey band inside the die's outline, round a white face | 54 px, face 38 px | Keeps "grey round white"; the number sits on a smaller face. |
-| B | Thinner (4 px) grey box outside the die | ~46 px | Keeps the look exactly; the user found 4 px hard to see before. |
-| **C (picked)** | The whole die is light grey, black number | 54 px | Biggest and simplest; drops the white-die-in-a-grey-box look. |
+|                | Locked die                                             | Die size          | Trade-off                                                       |
+| -------------- | ------------------------------------------------------ | ----------------- | --------------------------------------------------------------- |
+| A              | Grey band inside the die's outline, round a white face | 54 px, face 38 px | Keeps "grey round white"; the number sits on a smaller face.    |
+| B              | Thinner (4 px) grey box outside the die                | ~46 px            | Keeps the look exactly; the user found 4 px hard to see before. |
+| **C (picked)** | The whole die is light grey, black number              | 54 px             | Biggest and simplest; drops the white-die-in-a-grey-box look.   |
 
 The user picked C, as a trial: "or at least we can try c". If it doesn't
 look right on the badge, A is the fallback.
@@ -37,10 +37,11 @@ look right on the badge, A is the fallback.
 ## Tests
 
 The Badger simulator tests change with the look:
+
 - a locked die's face reads light grey, an unlocked one's white;
 - every die is at least 50 px across (was 38);
 - the old "grey band at least 8 px" test goes.
 
 The README's "grey box" line becomes "a locked die turns grey".
 
-*Claude's calls:* the font sizes, and keeping the ring at its old place.
+_Claude's calls:_ the font sizes, and keeping the ring at its old place.

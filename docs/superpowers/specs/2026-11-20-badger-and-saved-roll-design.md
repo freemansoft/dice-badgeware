@@ -60,11 +60,11 @@ The user first picked A, then narrowed it: save after each roll, not
 on lock or unlock. After testing on the Badger they went back to A (see
 "Revisions"). The table shows A as first offered.
 
-| | Approach | Trade-off |
-|---|---|---|
-| **A (picked)** | Save whenever the dice change: roll, lock, unlock all, Setup accepted. | One rule on every badge, and nothing is lost to a sudden power-off. Costs one small flash write per roll or lock, which is fine for hand presses. |
-| B | Save only just before the Badger sleeps. | Fewer writes. But the Badger display would need its own sleep timer and would trigger saving, so the badges would behave differently, and a power cut would lose the roll. |
-| C | Save on every press, including moving the highlight. | The highlight would also survive sleep. But A/C presses on the Tufty would mean a write each, for a small gain. |
+|                | Approach                                                               | Trade-off                                                                                                                                                                  |
+| -------------- | ---------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **A (picked)** | Save whenever the dice change: roll, lock, unlock all, Setup accepted. | One rule on every badge, and nothing is lost to a sudden power-off. Costs one small flash write per roll or lock, which is fine for hand presses.                          |
+| B              | Save only just before the Badger sleeps.                               | Fewer writes. But the Badger display would need its own sleep timer and would trigger saving, so the badges would behave differently, and a power cut would lose the roll. |
+| C              | Save on every press, including moving the highlight.                   | The highlight would also survive sleep. But A/C presses on the Tufty would mean a write each, for a small gain.                                                            |
 
 The user picked A and asked for the same behaviour on every platform.
 
@@ -75,8 +75,12 @@ The file is still `/state/dice_roller.json`, written by Badgeware's
 with `faces`:
 
 ```json
-{"count": 4, "faces": [6, 6, 6, 6, 6, 6],
- "values": [3, 5, 1, 6, 1, 1], "locked": [false, true, false, false, false, false]}
+{
+  "count": 4,
+  "faces": [6, 6, 6, 6, 6, 6],
+  "values": [3, 5, 1, 6, 1, 1],
+  "locked": [false, true, false, false, false, false]
+}
 ```
 
 - `values`: what each die shows, 1 up to that slot's faces.
@@ -121,12 +125,12 @@ the new file format.
 264 × 176 pixels. The driver keeps four shades, chosen by OR-ing the
 red, green and blue values, so only equal-channel greys are used:
 
-| Shade | RGB |
-|---|---|
-| black | (0, 0, 0) |
-| dark grey | (96, 96, 96) |
+| Shade      | RGB             |
+| ---------- | --------------- |
+| black      | (0, 0, 0)       |
+| dark grey  | (96, 96, 96)    |
 | light grey | (160, 160, 160) |
-| white | (255, 255, 255) |
+| white      | (255, 255, 255) |
 
 `color.light_grey` (0xC0) lands in white's band, so it is not used.
 
@@ -158,18 +162,18 @@ The Tufty's layout, scaled to the smaller screen:
 
 **Dice**
 
-| State | How it's drawn |
-|---|---|
-| Unlocked | White die, black outline, black number, small "d6" label. |
-| Locked | Light-grey die, black numbers. (First a white die inside a light-grey box; changed for bigger dice, see `2026-11-22-badger-bigger-dice-design.md`.) |
-| Highlighted | A thick black frame just outside the die. |
+| State       | How it's drawn                                                                                                                                      |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unlocked    | White die, black outline, black number, small "d6" label.                                                                                           |
+| Locked      | Light-grey die, black numbers. (First a white die inside a light-grey box; changed for bigger dice, see `2026-11-22-badger-bigger-dice-design.md`.) |
+| Highlighted | A thick black frame just outside the die.                                                                                                           |
 
 **Title bars**
 
-| Screen | Title bar |
-|---|---|
-| Roll | Black bar, white text: "Roll Baby Roll" on the left, "Total N" on the right. |
-| Setup | Dark-grey bar with white text: "Setup", and "Dice N" on the right. Shown as a white pill when the count is highlighted, as on the Tufty. |
+| Screen | Title bar                                                                                                                                |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Roll   | Black bar, white text: "Roll Baby Roll" on the left, "Total N" on the right.                                                             |
+| Setup  | Dark-grey bar with white text: "Setup", and "Dice N" on the right. Shown as a white pill when the count is highlighted, as on the Tufty. |
 
 The two bar shades tell the screens apart without colour.
 
@@ -182,7 +186,7 @@ right edge, DOWN about three-quarters of the way.
 snap to the four shades, which Pimoroni's own vector-text demo shows is
 fine. If the font fails to load, the ROM pixel font is used instead.
 
-*Claude's calls:* every colour, the shades, the bar heights and the
+_Claude's calls:_ every colour, the shades, the bar heights and the
 label positions above. Label positions are estimated from Pimoroni's
 render and need checking on the user's badge.
 
@@ -224,7 +228,7 @@ contract:
   taken as an action: the menu's B press can't open Setup, and pressing
   DOWN to wake doesn't roll.
 - **Sleep timeout:** 30 seconds without a press, the firmware's default.
-  *Claude's call.*
+  _Claude's call._
 - **No `HIRES` on the Badger.** `badge.mode(HIRES)` is not called there.
 
 ## Simulator
