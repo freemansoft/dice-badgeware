@@ -141,7 +141,7 @@ apps/dice_roller/        the app (copied to the badge)
     store.py             reading and writing it with Badgeware's State
   devices/               everything badge-specific
     __init__.py          display_for(badge.model)
-    buttons.py           badge buttons -> game names; was it woken by a button?
+    buttons.py           badge buttons -> game names
     tufty.py             Tufty 2350 display (colour, roll animation)
     badger.py            Badger 2350 display (e-ink, four greys, sleep)
     unsupported.py       message for a badge with no display yet
