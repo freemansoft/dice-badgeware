@@ -63,17 +63,11 @@ def slots(count=4):
     return layout.grid_slots(width, height, count, left, top)
 
 
-def body_shade(frame, i, count=4):
-    """Inside die i's body, left of its text."""
+def face_shade(frame, i, count=4):
+    """Die i's face, inside its outline and left of its text: white, or
+    light grey when locked."""
     cx, cy, half = slots(count)[i]
-    body = half - badger.BODY_INSET
-    return shade(frame, cx - body + 4, cy + body // 2)
-
-
-def box_shade(frame, i, count=4):
-    """Between die i's body and the locked box's edge: grey only when locked."""
-    cx, cy, half = slots(count)[i]
-    return shade(frame, cx, cy - (half - badger.LOCK_INSET) + 2)
+    return shade(frame, cx - half + 6, cy + half // 2)
 
 
 def dark_pixels(frame, x0, y0, x1, y1):
@@ -88,8 +82,7 @@ def labels_shown(frame):
 
 def test_badger_boots_to_four_white_dice(run):
     frame = run(SCREENS)["frames"][0]
-    assert [body_shade(frame, i) for i in range(4)] == ["white"] * 4
-    assert [box_shade(frame, i) for i in range(4)] == ["white"] * 4
+    assert [face_shade(frame, i) for i in range(4)] == ["white"] * 4
 
 
 def test_badger_labels_beside_every_button(run):
@@ -99,16 +92,16 @@ def test_badger_labels_beside_every_button(run):
     assert labels_shown(setup)
 
 
-def test_badger_lock_draws_grey_box(run):
+def test_badger_locked_die_is_grey(run):
     frame = run(SCREENS)["frames"][1]
-    assert box_shade(frame, 0) == "light" and body_shade(frame, 0) == "white"
-    assert box_shade(frame, 1) == "white"
+    assert face_shade(frame, 0) == "light"
+    assert face_shade(frame, 1) == "white"
 
 
 def test_badger_long_up_unlocks_all(run):
     frames = run(SCREENS)["frames"]
-    assert box_shade(frames[2], 0) == "light"  # still locked before the hold
-    assert [box_shade(frames[3], i) for i in range(4)] == ["white"] * 4
+    assert face_shade(frames[2], 0) == "light"  # still locked before the hold
+    assert [face_shade(frames[3], i) for i in range(4)] == ["white"] * 4
 
 
 def test_badger_setup_header_is_dark_grey(run):
@@ -145,12 +138,27 @@ def test_badger_labels_are_large(run):
     assert min([*bottom, roll]) >= 12
 
 
-def test_badger_lock_box_is_wide(run):
-    # the user found the first grey band (4 px) hard to see
-    frame = run(SCREENS)["frames"][1]
-    cx, cy, half = slots()[0]
-    band = [y for y in range(cy - half - 6, cy) if shade(frame, cx, y) == "light"]
-    assert len(band) >= 8
+def test_badger_dice_are_large(run):
+    # the user found the dice (38 px) much smaller than the Tufty's; each
+    # die now fills its slot. Measured along die 2's centre row (die 1 is
+    # highlighted, and its ring would add to the width).
+    frame = run(SCREENS)["frames"][0]
+    cx, cy, half = slots()[1]
+    row = [x for x in range(cx - half - 2, cx + half + 2) if shade(frame, x, cy + half // 2) == "black"]
+    assert max(row) - min(row) + 1 >= 50
+
+
+def test_badger_highlight_clears_the_bars(run):
+    # the ring round a highlighted die sits outside it (outer edge half +
+    # FRAME_OUT): white must still show between it and the title bar, and
+    # it must end above the line over the labels for every dice count
+    frame = run(SCREENS)["frames"][0]  # die 1, top row, highlighted
+    cx, _, _ = slots()[0]
+    assert shade(frame, cx, badger.HEADER_H) == "white"
+    for count in range(2, 7):
+        for _, cy, half in slots(count):
+            assert cy - half - badger.FRAME_OUT > badger.HEADER_H
+            assert cy + half + badger.FRAME_OUT < badger.BAR_TOP
 
 
 def ink_rows(frame, x0, y0, x1, y1):

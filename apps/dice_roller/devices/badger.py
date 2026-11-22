@@ -49,11 +49,10 @@ LABEL_BAR_Y = 161
 COLUMN_X = (COLUMN_LEFT + WIDTH) // 2
 RIGHT_EDGE = WIDTH - 6  # right-aligned title-bar items end here
 
-# A die at (cx, cy, half) from grid_slots, from the outside in:
+# A die at (cx, cy, half) from grid_slots fills its slot: 2 * half across,
+# a black outline round a white face, or a light-grey face when locked.
 FRAME_OUT = 4    # highlight ring: outer edge at half + 4 ...
-FRAME_W = 3      # ... and 3 px wide, so it sits just outside the slot
-LOCK_INSET = 0   # locked: a light-grey box filling the slot (to half) ...
-BODY_INSET = 8   # ... around the die body (half - 8): an 8 px grey band
+FRAME_W = 3      # ... and 3 px wide, in the gap just outside the die
 OUTLINE = 2
 RADIUS = 6
 
@@ -65,9 +64,9 @@ SETUP_TITLE = "Setup"
 SIZE_HEADER = 14
 SIZE_LABEL = 19
 SIZE_HOLD = 11
-SIZE_VALUE = 22
-SIZE_TYPE = 9
-SIZE_FACES = 16
+SIZE_VALUE = 29
+SIZE_TYPE = 10
+SIZE_FACES = 19
 
 BLACK = (0, 0, 0)
 DARK = (96, 96, 96)
@@ -165,12 +164,9 @@ class BadgerDisplay:
             outer = half + FRAME_OUT
             self._square(cx, cy, outer, self.pens["black"], RADIUS + 2)
             self._square(cx, cy, outer - FRAME_W, self.pens["white"], RADIUS + 1)
-        if locked:
-            self._square(cx, cy, half - LOCK_INSET, self.pens["light"], RADIUS + 1)
-        body = half - BODY_INSET
-        self._square(cx, cy, body, self.pens["black"])
-        self._square(cx, cy, body - OUTLINE, self.pens["white"], RADIUS - 1)
-        return body
+        face = self.pens["light"] if locked else self.pens["white"]
+        self._square(cx, cy, half, self.pens["black"])
+        self._square(cx, cy, half - OUTLINE, face, RADIUS - 1)
 
     def _header(self, title, right, fill, pill=False):
         self._rect(0, 0, WIDTH, HEADER_H, self.pens[fill])
@@ -207,9 +203,9 @@ class BadgerDisplay:
         black = self.pens["black"]
         for i, (cx, cy, half) in enumerate(self.layouts[len(dice)]):
             die = dice[i]
-            body = self._die(cx, cy, half, i == app.cursor, die.locked)
-            self._centred(str(die.value), cx, cy - 3, SIZE_VALUE, black)
-            self._centred("d{}".format(die.faces), cx, cy + body - 8, SIZE_TYPE, black)
+            self._die(cx, cy, half, i == app.cursor, die.locked)
+            self._centred(str(die.value), cx, cy - 4, SIZE_VALUE, black)
+            self._centred("d{}".format(die.faces), cx, cy + half - 10, SIZE_TYPE, black)
 
     def _draw_config(self, app):
         self._header(SETUP_TITLE, "Dice  {}".format(app.count), "dark", pill=app.cursor == 0)

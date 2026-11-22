@@ -161,8 +161,8 @@ The Tufty's layout, scaled to the smaller screen:
 | State | How it's drawn |
 |---|---|
 | Unlocked | White die, black outline, black number, small "d6" label. |
-| Locked | The same white die with black numbers, inside a light-grey box (the user's design). |
-| Highlighted | A thick black frame around the die. On a locked die it goes outside the grey box. |
+| Locked | Light-grey die, black numbers. (First a white die inside a light-grey box; changed for bigger dice, see `2026-11-22-badger-bigger-dice-design.md`.) |
+| Highlighted | A thick black frame just outside the die. |
 
 **Title bars**
 

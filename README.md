@@ -24,8 +24,8 @@ per badge, so the Blinky 2350 can be added later (see
 The title bar reads **Roll Baby Roll**, with the total on the right; while
 the dice flicker after a roll, the total flickers with them. Every
 die is dark red; locked dice turn grey and are labelled `LOCK`. On the
-Badger's black-and-white screen dice are white, and a locked die sits in
-a grey box.
+Badger's black-and-white screen dice are white, and a locked die turns
+grey.
 
 ### Configure screen
 
