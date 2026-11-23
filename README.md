@@ -185,6 +185,7 @@ docs/superpowers/        designs and implementation plans
 ruff.toml                lint rules (extends Pimoroni's)
 .githooks/pre-commit     block commits of unformatted Markdown (prettier)
 .github/workflows/ci.yml lint, syntax check and tests on every PR
+.claude/skills/          the project's own Claude Code skill (badge-deploy)
 ```
 
 ### Simulator
@@ -299,6 +300,12 @@ To check: `claude plugin list` shows both as enabled.
 Both marketplaces update themselves: Anthropic's by default, and the
 Superpowers one because `.claude/settings.json` sets `"autoUpdate": true`.
 New Superpowers releases arrive without any change to this repository.
+
+One skill is the project's own and is stored here, in
+`.claude/skills/`: `badge-deploy`, how Claude puts a branch on a real
+badge for testing (checks first, the committed code via
+`tools/install.py`, then what to look at on the badge). Claude Code
+picks it up with no setup.
 
 ## Licence and credits
 
