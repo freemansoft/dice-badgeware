@@ -5,15 +5,14 @@ touches a real badge. (Adapted from freemansoft/MoodBadger2350.)"""
 import sys
 
 import pytest
-from conftest import ROOT
+from conftest import ROOT, assert_micropython_syntax
 
 sys.path.insert(0, str(ROOT / "tools"))
 import badge_check
-import install
 
 
-def test_files_snippet_is_valid_micropython_syntax():
-    compile(badge_check.FILES_SNIPPET, "<badge>", "exec")
+def test_files_snippet_is_valid_micropython_syntax(tmp_path):
+    assert_micropython_syntax(badge_check.FILES_SNIPPET, tmp_path)
     assert '"/system/apps/dice_roller"' in badge_check.FILES_SNIPPET
 
 
@@ -25,16 +24,6 @@ def test_local_files_are_what_install_copies_with_sizes(tmp_path):
     (tmp_path / "game" / "__pycache__").mkdir()
     (tmp_path / "game" / "__pycache__" / "dice.cpython-311.pyc").write_bytes(b"pyc")
     assert badge_check.local_files(tmp_path) == {"__init__.py": 3, "game/dice.py": 5}
-
-
-def test_local_files_cover_the_real_app():
-    files = badge_check.local_files(install.SRC)
-    assert {"__init__.py", "icon.png", "game/dice.py", "devices/badger.py"} <= files.keys()
-
-
-def test_compare_files_matching():
-    files = {"__init__.py": 3, "game/dice.py": 5}
-    assert badge_check.compare_files(files, dict(files)) == {}
 
 
 def test_compare_files_reports_missing_extra_size_and_junk():

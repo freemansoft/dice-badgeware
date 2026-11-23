@@ -34,22 +34,26 @@ differences listed there.
 .venv/bin/pytest -q
 ```
 
-This includes layer 3 when `node` is installed (skipped without it). The
-host tests load the real modules with small fakes written in each test
-file, not a shared fake firmware:
+This includes layer 3 when `node` is installed (skipped without it).
+`tests/` has one folder per thing under test; the host tests load the
+real modules with small fakes written in each test file, not a shared
+fake firmware:
 
-- `tests/test_dice.py`, `test_app.py`, `test_controls.py`,
-  `test_layout.py`, `test_record.py`: the game and the saved record,
-  plain Python.
-- `tests/test_entry.py`: `apps/dice_roller/__init__.py` with stand-ins
-  for the Badgeware builtins, driven frame by frame.
-- `tests/test_tufty_display.py`, `test_badger_display.py`: each display
-  against a fake badge (when the Badger refreshes, polls and waits).
-- `tests/test_install.py`, `test_badge_tools.py`, `test_badge_check.py`,
-  `test_update_sim.py`: the tools, with no badge, drive or network.
-- `tests/test_readme.py`, `test_platform_skill.py`,
-  `test_prettier_version.py`, `test_ruff_config.py`: the docs and
-  configs.
+- `tests/app/`: the app's own code. `test_dice.py`, `test_app.py`,
+  `test_controls.py`, `test_layout.py` and `test_record.py` cover the
+  game and the saved record, plain Python; `test_entry.py` runs
+  `apps/dice_roller/__init__.py` with stand-ins for the Badgeware
+  builtins, frame by frame; `test_tufty_display.py` and
+  `test_badger_display.py` run each display against a fake badge (when
+  the Badger refreshes, polls and waits).
+- `tests/sim/`: the app in the simulator (layer 3).
+- `tests/tools/`: the tools in `tools/`, with no badge, drive or
+  network.
+- `tests/project/`: the docs and configs (cited paths exist, README
+  anchors resolve, the prettier version is written only in
+  `.prettier-version`, the Tufty's and Badger's ruff rules match).
+
+`.venv/bin/pytest tests/app` runs one folder.
 
 Write the failing test before the change (superpowers TDD). A test that
 passes before the change tests nothing. Don't pipe pytest into `tail`
@@ -86,9 +90,9 @@ names, each with an optional hold in ms (`UP:1200`); `--state` starts
 from a saved record, as after a restart or a Badger wake. The JSON has
 `status`, `width`, `height`, `frames` (RGB, one after launch and one per
 step), `refreshes` per step, the saved `state` and the app's `log` (a
-crash prints `- ERROR:`). `tests/test_sim.py` (Tufty) and
-`tests/test_sim_badger.py` (Badger) check pixels in these frames through
-`tests/simrun.py`.
+crash prints `- ERROR:`). `tests/sim/test_sim.py` (Tufty) and
+`tests/sim/test_sim_badger.py` (Badger) check pixels in these frames
+through `tests/sim/simrun.py`.
 
 To look at a frame without a browser, write it as an image and read it:
 

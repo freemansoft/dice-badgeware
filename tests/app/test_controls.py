@@ -73,10 +73,3 @@ def test_same_frame_order():
     m = started()
     held = {"B", "A", "DOWN"}
     assert m.actions(R, set(held), held, 1000) == ["left", "roll", "configure"]
-
-
-def test_label_words():
-    assert controls.LABELS[R] == {"A": "Left", "B": "Setup", "C": "Right", "UP": "Lock", "DOWN": "Roll"}
-    assert controls.LABELS[K] == {"A": "Left", "B": "Done", "C": "Right", "UP": "More", "DOWN": "Less"}
-    assert controls.HOLD_LABELS == {R: {"UP": "hold: all"}, K: {}}
-

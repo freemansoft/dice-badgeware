@@ -96,7 +96,7 @@ only file that touches `State`.
   equal-channel greys survive: a colour washes out (`color.light_grey`,
   0xC0, lands on white). `devices/badger.py` uses black, dark (96),
   light (160) and white; the simulator reduces frames to 0, 85, 170 and
-  255, which `tests/test_sim_badger.py` reads as bands.
+  255, which `tests/sim/test_sim_badger.py` reads as bands.
 - **Saving.** `DiceApp.take_save_point()` is true after every roll,
   lock, unlock and accept; `__init__.py` saves then, before
   `end_frame()` can refresh or sleep.

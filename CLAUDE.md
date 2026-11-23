@@ -5,10 +5,10 @@ Dice Roller: a MicroPython Badgeware app for the Pimoroni Tufty 2350 (colour LCD
 ## Development
 
 - Set up: `git submodule update --init` (`vendor/`: Pimoroni's firmware, which ruff and the simulator need), then `python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt` (pinned ruff, mpy-cross, mpremote, pytest), then `git config core.hooksPath .githooks`
-- Test: `.venv/bin/pytest` (includes the headless simulator for both badges when `node` is installed)
+- Test: `.venv/bin/pytest` (includes the headless simulator for both badges when `node` is installed). `tests/` is split by what is tested: `app/` (the app's code on fakes), `sim/` (the simulator), `tools/` and `project/` (docs and configs)
 - MicroPython syntax: `find apps/dice_roller -name '*.py' -print0 | xargs -0 -n1 .venv/bin/python -m mpy_cross -o /dev/null`
 - Lint: `.venv/bin/ruff check .` (`ruff.toml` extends Pimoroni's `vendor/tufty2350/ci/ruff.toml`). `ruff format` is not used: Pimoroni's firmware CI only runs `ruff check`
-- Markdown: `npx --yes prettier@$(cat .prettier-version) --config .prettierrc.json --write <files>`. The version lives only in `.prettier-version`; the hook and CI read it, and `tests/test_prettier_version.py` fails if it's written anywhere else
+- Markdown: `npx --yes prettier@$(cat .prettier-version) --config .prettierrc.json --write <files>`. The version lives only in `.prettier-version`; the hook and CI read it, and `tests/project/test_prettier_version.py` fails if it's written anywhere else
 - Pre-commit hook (`.githooks/pre-commit`): on staged content, `ruff check` on `.py` files, mpy-cross on `apps/dice_roller` `.py` files, prettier on `.md` files
 - CI (`.github/workflows/ci.yml`) runs the lint, MicroPython syntax, tests and Markdown checks on every PR and push to `main`
 - Simulator: `python3 sim/stage.py && python3 -m http.server -d sim/dist 8000`, then `/tufty/` or `/badger/`. Headless: `node sim/run_headless.mjs --model badger --steps "UP,DOWN" --frames out.json`. `python3 tools/update_sim.py --check` compares the pinned build and firmware with the latest

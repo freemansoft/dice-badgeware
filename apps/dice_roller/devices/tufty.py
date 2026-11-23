@@ -22,7 +22,7 @@ DOWN on its right edge, so their labels go beside them):
 Text uses the firmware's MonaSans vector font, with 4x anti-aliasing
 (Badgeware draws vector text with hard edges unless screen.antialias is
 set), falling back to a pixel font if it can't be loaded. The simulator tests
-(tests/test_sim.py) check the colours and positions pinned here.
+(tests/sim/test_sim.py) check the colours and positions pinned here.
 """
 
 import random

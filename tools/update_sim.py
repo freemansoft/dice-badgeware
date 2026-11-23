@@ -13,7 +13,7 @@ sim/wasm/VERSION.json records what is in use.
     python3 tools/update_sim.py --run 35841227054 --firmware-tag v3.1.1
 
 Needs the GitHub CLI, logged in (gh auth login). Standard library only.
-After updating: run .venv/bin/pytest tests/test_sim.py, then commit
+After updating: run .venv/bin/pytest tests/sim/, then commit
 sim/wasm and vendor/.
 """
 
@@ -197,7 +197,7 @@ def update(models, run_id, firmware_tag):
     stage = ROOT / "sim" / "stage.py"
     if stage.exists():
         subprocess.run([sys.executable, str(stage)], check=True)
-    print("next: .venv/bin/pytest tests/test_sim.py, then commit sim/wasm and vendor/")
+    print("next: .venv/bin/pytest tests/sim/, then commit sim/wasm and vendor/")
     return 0
 
 

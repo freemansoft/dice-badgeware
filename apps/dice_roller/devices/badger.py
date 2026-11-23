@@ -28,7 +28,7 @@ edge, so their labels go beside them):
 
 Only equal-channel greys are used: the panel ORs R, G and B together and
 keeps four levels, so a colour washes out (color.light_grey, 0xC0, lands
-on white). The simulator tests (tests/test_sim_badger.py) check the
+on white). The simulator tests (tests/sim/test_sim_badger.py) check the
 shades and positions pinned here.
 """
 

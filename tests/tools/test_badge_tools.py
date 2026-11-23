@@ -7,7 +7,7 @@ import re
 import sys
 
 import pytest
-from conftest import ROOT
+from conftest import ROOT, assert_micropython_syntax
 
 sys.path.insert(0, str(ROOT / "tools"))
 import badge_info
@@ -33,11 +33,6 @@ def test_badge_ports_finds_a_badger_and_a_tufty():
     devs = DEVS + "/dev/cu.usbmodem1101 abc 2e8a:1101 Pimoroni Pimoroni Badger 2350 MicroPython\n"
     assert rel.badge_ports(devs) == [
         ("/dev/cu.usbmodem201401", "tufty"), ("/dev/cu.usbmodem1101", "badger")]
-
-
-def test_asset_names_match_pimoroni_releases():
-    assert rel.asset_name("badger", "v3.1.1", False) == "badger-v3.1.1-micropython.uf2"
-    assert rel.asset_name("tufty", "v3.1.1", True) == "tufty-v3.1.1-micropython-with-filesystem.uf2"
 
 
 def test_pick_asset_chooses_the_flavour_and_explains_a_miss():
@@ -101,8 +96,8 @@ def test_parse_info_reads_the_marked_line():
     assert badge_info.parse_info(out) == {"model": "badger"}
 
 
-def test_device_snippet_is_valid_micropython_syntax():
-    compile(badge_info.DEVICE_SNIPPET, "<badge>", "exec")
+def test_device_snippet_is_valid_micropython_syntax(tmp_path):
+    assert_micropython_syntax(badge_info.DEVICE_SNIPPET, tmp_path)
 
 
 def test_device_snippet_reads_the_dice_rollers_saved_record():

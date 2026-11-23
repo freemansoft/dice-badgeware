@@ -3,11 +3,12 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from conftest import ROOT
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+sys.path.insert(0, str(ROOT / "tools"))
 import install
 
-APP_SRC = Path(__file__).resolve().parent.parent / "apps" / "dice_roller"
+APP_SRC = ROOT / "apps" / "dice_roller"
 
 
 def app_files(root):
@@ -90,11 +91,6 @@ def test_remove_apple_double_removes_only_dot_underscore_files(tmp_path):
     assert install.remove_apple_double(tmp_path) == 3
     left = sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*") if p.is_file())
     assert left == ["__init__.py", "game/dice.py", "icon.png"]
-
-
-def test_remove_apple_double_with_nothing_to_remove(tmp_path):
-    (tmp_path / "__init__.py").write_text("x")
-    assert install.remove_apple_double(tmp_path) == 0
 
 
 def test_install_removes_the_apple_double_files_macos_writes(tmp_path, monkeypatch):

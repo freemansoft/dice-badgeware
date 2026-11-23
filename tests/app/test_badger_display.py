@@ -3,7 +3,7 @@ when it waits for a press, and what it writes.
 
 The refresh-and-wait order matters on the Badger: its run() loop only calls
 update(), so the display pushes frames, polls and waits itself. Pixels are
-checked in the simulator (tests/test_sim_badger.py).
+checked in the simulator (tests/sim/test_sim_badger.py).
 """
 
 import builtins

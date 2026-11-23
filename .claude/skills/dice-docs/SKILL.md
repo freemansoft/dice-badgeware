@@ -32,8 +32,8 @@ the user rather than setting it silently. Don't bypass the hook with
 
 To change the prettier version, change `.prettier-version` only. The
 hook, CI and every doc read or name that file; never write the version
-number anywhere else (`tests/test_prettier_version.py` fails if a file
-hard-codes it).
+number anywhere else (`tests/project/test_prettier_version.py` fails
+if a file hard-codes it).
 
 ## Wrapping and layout
 
@@ -97,9 +97,9 @@ than one place on purpose, as summaries.
   `#anchors`.
 - Renaming a heading changes its anchor. Before renaming, grep the
   repo for `#<old-anchor>` and fix every link.
-  `tests/test_readme.py` fails if a README `#anchor` link doesn't
-  resolve, and if one of the README's key reference links (the video,
-  the Pimoroni repos) goes missing.
-- `tests/test_platform_skill.py` checks that every `vendor/...` path
-  the `badgeware-platforms` skill cites exists, and that the other
-  skills and `CLAUDE.md` point to it.
+  `tests/project/test_readme.py` fails if a README `#anchor` link
+  doesn't resolve.
+- `tests/project/test_docs.py` fails if a repo path that the README,
+  `CLAUDE.md` or a skill cites (`tools/...`, `tests/...`,
+  `vendor/...`) no longer exists, or if they name a firmware version
+  other than the one `sim/wasm/VERSION.json` pins.

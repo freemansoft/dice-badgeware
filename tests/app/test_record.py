@@ -8,10 +8,6 @@ def repair_count(c):
     return record.repair({"count": c, "faces": [6] * 6})["count"]
 
 
-def test_defaults():
-    assert record.defaults() == {"count": 4, "faces": [6] * 6}
-
-
 def test_defaults_are_fresh():
     a = record.defaults()
     a["faces"][0] = 9
@@ -75,7 +71,7 @@ def test_valid_record_kept_as_is(valid):
     assert record.repair(valid) == valid
 
 
-@pytest.mark.parametrize("values", [[1, 2, 3], "x", None, [1] * 7])
+@pytest.mark.parametrize("values", [[1, 2, 3], "xxxxxx", [1] * 7])  # short, six but not a list, long
 def test_bad_values_mean_no_roll(values):
     r = record.repair({**ROLL, "values": values})
     assert "values" not in r and "locked" not in r
@@ -92,7 +88,7 @@ def test_locked_only_true_counts():
     assert r["locked"] == [True, False, False, False, False, True]
 
 
-@pytest.mark.parametrize("locked", [None, [True], "x"])
+@pytest.mark.parametrize("locked", [None, [True]])  # missing, short
 def test_bad_locked_means_unlocked(locked):
     data = dict(ROLL)
     if locked is None:

@@ -168,7 +168,8 @@ def ink_rows(frame, x0, y0, x1, y1):
 
 def test_badger_labels_fit_inside_their_bars(run):
     # big labels must not touch the screen edge or the line above the bar
-    for frame in run(SCREENS)["frames"][::3]:  # the roll screen, then setup
+    frames = run(SCREENS)["frames"]
+    for frame in (frames[0], frames[4]):  # the roll screen, then setup
         for x in badger.LABEL_X.values():
             top, bottom = ink_rows(frame, x - 30, badger.BAR_TOP + 1, x + 30, H)
             assert top >= badger.BAR_TOP + 3 and bottom <= H - 3

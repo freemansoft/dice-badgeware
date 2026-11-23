@@ -228,7 +228,11 @@ apps/dice_roller/        the app (copied to the badge)
     unsupported.py       message for a badge with no display yet
   icon.png               24x24 menu icon (tools/make_icon.py)
 sim/                     local simulator (below)
-tests/                   pytest: one file per module, plus the simulator
+tests/                   pytest, one folder per thing under test
+  app/                   the app's code, with fakes for the badge
+  sim/                   the app in the simulator (needs Node)
+  tools/                 the tools, with no badge, drive or network
+  project/               docs and configs: cited paths, anchors, pinned versions
 tools/install.py         copy the app to the badge's USB drive
 tools/badge_info.py      which badge is on USB, and is its firmware current
 tools/badge_check.py     check the installed app from the badge's side
@@ -272,8 +276,8 @@ hold time in milliseconds. `out.json` holds an RGB frame after each step
 (320×240 Tufty, 264×176 Badger), the number of screen refreshes per
 step, the saved record at the end, and the app's console output.
 `--state` starts the app from a saved record, as after a restart.
-`tests/test_sim.py` and `tests/test_sim_badger.py` check pixels in these
-frames.
+`tests/sim/test_sim.py` and `tests/sim/test_sim_badger.py` check pixels
+in these frames.
 
 The Badger build runs deep on the JavaScript stack, so the headless
 runner restarts Node with a 4 MB stack (Node 18's default overflows).

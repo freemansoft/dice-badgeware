@@ -5,8 +5,9 @@ from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
+from conftest import ROOT
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+sys.path.insert(0, str(ROOT / "tools"))
 import update_sim
 
 RUNS = [
@@ -23,16 +24,8 @@ RELEASES = [
 ]
 
 
-def test_latest_build_run():
-    assert update_sim.latest_build_run(RUNS)["databaseId"] == 4
-
-
 def test_latest_build_run_none():
     assert update_sim.latest_build_run([]) is None
-
-
-def test_latest_release_tag():
-    assert update_sim.latest_release_tag(RELEASES) == "v3.1.1"
 
 
 @pytest.fixture

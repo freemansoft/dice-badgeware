@@ -1,12 +1,13 @@
 import struct
 import sys
 import zlib
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "tools"))
+from conftest import ROOT
+
+sys.path.insert(0, str(ROOT / "tools"))
 import make_icon
 
-ICON = Path(__file__).resolve().parent.parent / "apps" / "dice_roller" / "icon.png"
+ICON = ROOT / "apps" / "dice_roller" / "icon.png"
 
 TRANSPARENT = (0, 0, 0, 0)
 ORANGE = (255, 140, 0, 255)
