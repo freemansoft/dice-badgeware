@@ -85,12 +85,29 @@ whatever screen you were looking at before.
 
 ## Install
 
-1. Connect the badge with a USB-C data cable and **double-tap RESET** on
-   the back. It mounts as a drive named `TUFTY` or `BADGER`.
-2. Run `python3 tools/install.py`. It finds the drive, copies
+The app is built and tested on Badgeware firmware v3.1.1 (Pimoroni's
+[tufty2350](https://github.com/pimoroni/tufty2350) and
+[badger2350](https://github.com/pimoroni/badger2350) releases). Check
+the badge's firmware before installing:
+
+1. Connect the badge with a USB-C data cable, with the menu or an app
+   on screen (press RESET once if it's asleep), and run
+   `.venv/bin/python tools/badge_info.py` (set up `.venv` as in
+   [Development](#development)). It reports the model and whether the
+   firmware looks current; it restarts the badge when it's done. If it
+   says **OLDER**, update the firmware first:
+   [Badge tools](#badge-tools) has the command.
+   If the badge is already in disk mode, it can't be read: eject the
+   drive and press RESET once to check, or skip the check if you know
+   the firmware is current.
+2. **Double-tap RESET** on the back. The badge mounts as a drive named
+   `TUFTY` or `BADGER`.
+3. Run `python3 tools/install.py`. It finds the drive, copies
    `apps/dice_roller/` into its `apps/` folder, and on macOS and Linux
    ejects it. (Or copy the folder by hand, then eject.)
-3. The badge restarts into the menu. Choose **Dice Roller**.
+4. The badge restarts into the menu. Optionally, check the copy from
+   the badge's side with `.venv/bin/python tools/badge_check.py files`.
+   Choose **Dice Roller**.
 
 The installer is hardened. It builds the new copy in a hidden folder on
 the drive, checks every file byte for byte, and only then swaps it in, so
@@ -101,7 +118,33 @@ the old app in place and working: just run it again. It also removes the
 
 Always eject before pressing RESET or unplugging: the check can't tell
 whether the computer has finished writing to the badge, and files cut
-short show up as a SyntaxError when the app starts.
+short show up as a SyntaxError when the app starts. `badge_check.py`
+reads the files back on the badge itself, after the eject, so it sees
+what the badge really holds.
+
+### Badge tools
+
+All in `tools/`, standard-library Python; the ones that talk to the
+badge over USB use `mpremote`, so run them with `.venv/bin/python`
+(which has the pinned copy). Each of those stops the running app and
+restarts the badge when it's done (a Badger reopens the app it was
+showing, a Tufty opens the menu).
+
+| Tool                                                                     | What it does                                                                       |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
+| `.venv/bin/python tools/badge_info.py`                                   | Model, firmware build date vs Pimoroni's latest release, app installed, free space |
+| `python3 tools/install.py`                                               | Copy the app to the badge in disk mode, check it, eject                            |
+| `.venv/bin/python tools/badge_check.py files`                            | After the eject: compare the app on the badge with `apps/dice_roller`              |
+| `.venv/bin/python tools/flash_firmware.py --model tufty --firmware-only` | Download Pimoroni's latest firmware and flash it (bootloader mode)                 |
+
+To flash: run `flash_firmware.py` with the model `badge_info.py`
+reported, then hold BOOT, tap RESET and let go of BOOT; a drive named
+`RP2350` appears and the flash runs by itself. Don't press anything
+until it says "Flash complete". `--firmware-only` keeps the apps and
+the saved dice; `--with-filesystem` resets the badge's drive to
+Pimoroni's defaults, removing the Dice Roller. The firmware verdict
+compares build dates, since the firmware doesn't record its release
+number.
 
 ### Badger notes
 
@@ -122,7 +165,7 @@ short show up as a SyntaxError when the app starts.
 git submodule update --init          # vendor/: Pimoroni's Tufty and Badger firmware, pinned to a release
 python3 -m venv .venv
 .venv/bin/pip install -r requirements-dev.txt
-git config core.hooksPath .githooks  # pre-commit: block unformatted Markdown
+git config core.hooksPath .githooks  # pre-commit: lint staged Python, block unformatted Markdown
 ```
 
 Using Claude Code? Also install the project's plugins: see
@@ -133,7 +176,7 @@ Using Claude Code? Also install the project's plugins: see
 | All tests (unit + simulator)          | `.venv/bin/pytest`                                                                                      |
 | Lint everything with Pimoroni's rules | `.venv/bin/ruff check .`                                                                                |
 | Check MicroPython syntax              | `find apps/dice_roller -name '*.py' -print0 \| xargs -0 -n1 .venv/bin/python -m mpy_cross -o /dev/null` |
-| Format Markdown                       | `git ls-files -z '*.md' \| xargs -0 npx --yes prettier@3.9.10 --write`                                  |
+| Format Markdown                       | `git ls-files -z '*.md' \| xargs -0 npx --yes prettier@$(cat .prettier-version) --write`                |
 | Regenerate the icon                   | `python3 tools/make_icon.py`                                                                            |
 
 The simulator tests need Node (18 or later) and are skipped without it.
@@ -141,13 +184,19 @@ The simulator tests need Node (18 or later) and are skipped without it.
 `ruff.toml` extends the rules Pimoroni lint their own badge firmware with
 (`vendor/tufty2350/ci/ruff.toml`), so it needs the submodules. Unused
 arguments that a fake must keep, to match the real signature, start with
-`_`. Python has no formatter: Pimoroni don't use one either.
+`_`. Python has no formatter: Pimoroni's firmware CI only runs
+`ruff check`, so `ruff format` isn't used.
 
-Markdown is formatted with prettier (pinned version, settings in
-`.prettierrc.json`, as in claude-buddy-badgeware). The pre-commit hook in
-`.githooks/` blocks commits whose staged `.md` files aren't formatted and
-prints the command to fix them. It needs Node; turn it on once per clone
-with the `git config` line above.
+Markdown is formatted with prettier, at the version in
+`.prettier-version` (the hook and CI read it from there), settings in
+`.prettierrc.json`, as in claude-buddy-badgeware.
+
+The pre-commit hook in `.githooks/` checks what is staged, not the
+working copy: `ruff check` on each staged `.py` file, mpy-cross on each
+staged `.py` file under `apps/dice_roller`, and prettier on each staged
+`.md` file. It blocks the commit if any fail and prints what to fix. It
+uses ruff and mpy-cross from `.venv` (or PATH) and needs Node for
+prettier; turn it on once per clone with the `git config` line above.
 
 GitHub Actions (`.github/workflows/ci.yml`) runs the lint, the syntax
 check, every test (simulator included) and the Markdown check on each
@@ -181,14 +230,20 @@ apps/dice_roller/        the app (copied to the badge)
 sim/                     local simulator (below)
 tests/                   pytest: one file per module, plus the simulator
 tools/install.py         copy the app to the badge's USB drive
+tools/badge_info.py      which badge is on USB, and is its firmware current
+tools/badge_check.py     check the installed app from the badge's side
+tools/flash_firmware.py  download and flash Pimoroni's firmware
+tools/badgeware_release.py shared helpers for the badge tools
 tools/make_icon.py       regenerate icon.png
 tools/update_sim.py      check for and pull newer simulator builds and firmware
 vendor/                  Pimoroni's Tufty and Badger firmware (git submodules)
 docs/superpowers/        designs and implementation plans
 ruff.toml                lint rules (extends Pimoroni's)
-.githooks/pre-commit     block commits of unformatted Markdown (prettier)
+.prettier-version        the prettier version for Markdown (hook and CI)
+.githooks/pre-commit     lint staged Python (ruff, mpy-cross), check staged Markdown (prettier)
 .github/workflows/ci.yml lint, syntax check and tests on every PR
-.claude/skills/          the project's own Claude Code skill (badge-deploy)
+CLAUDE.md                short development notes for Claude Code
+.claude/skills/          the project's own Claude Code skills (below)
 ```
 
 ### Simulator
@@ -304,11 +359,16 @@ Both marketplaces update themselves: Anthropic's by default, and the
 Superpowers one because `.claude/settings.json` sets `"autoUpdate": true`.
 New Superpowers releases arrive without any change to this repository.
 
-One skill is the project's own and is stored here, in
-`.claude/skills/`: `badge-deploy`, how Claude puts a branch on a real
-badge for testing (checks first, the committed code via
-`tools/install.py`, then what to look at on the badge). Claude Code
-picks it up with no setup.
+Five skills are the project's own and are stored here, in
+`.claude/skills/`; Claude Code picks them up with no setup:
+
+| Skill                 | What it's for                                                                        |
+| --------------------- | ------------------------------------------------------------------------------------ |
+| `badge-deploy`        | Put a branch on a real badge: checks, firmware check, install, badge-side file check |
+| `badge-firmware`      | Check and flash the badge's Badgeware firmware                                       |
+| `badge-verify`        | Which test layers a change needs, simulator and hardware checks, hand checklists     |
+| `badgeware-platforms` | How the Badger and Tufty differ in the firmware, and the app's rules for both        |
+| `dice-docs`           | The Markdown standard and which doc owns which topic                                 |
 
 ## Licence and credits
 
@@ -317,6 +377,8 @@ picks it up with no setup.
   `vendor/tufty2350` keeps its own licence.
 - `tools/install.py` and `tools/make_icon.py` are adapted from
   claude-buddy-badgeware, and the installer's staged, checked copy from
-  MoodBadger2350's; the simulator loader follows the approach of
-  MoodBadger2350's `sim/`.
+  MoodBadger2350's; `tools/badge_info.py`, `badge_check.py`,
+  `flash_firmware.py` and `badgeware_release.py`, and most of the
+  project skills, are adapted from MoodBadger2350; the simulator loader
+  follows the approach of MoodBadger2350's `sim/`.
 - Button layout and menu spacing follow Pimoroni's Badgeware launcher.

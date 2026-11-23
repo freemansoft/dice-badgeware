@@ -1,0 +1,225 @@
+#!/usr/bin/env python3
+"""Identify the Badgeware badge on USB and check its firmware.
+
+The badge must be in normal mode (menu or an app on screen), not disk
+mode, and awake. mpremote interrupts whatever is running to read it,
+so afterwards this restarts the badge with machine.reset(): a Badger
+reopens the app it was showing, a Tufty opens the menu.
+--no-restart leaves it stopped, its screen frozen, until RESET.
+
+    .venv/bin/python tools/badge_info.py              # finds the badge
+    .venv/bin/python tools/badge_info.py --port /dev/cu.usbmodem1101
+    .venv/bin/python tools/badge_info.py --json       # machine-readable
+
+Reports the model (from badge.model), the MicroPython build and build
+date, whether the Dice Roller is installed, the saved dice, free space,
+and the latest Badgeware release for that model with a verdict on
+whether the firmware is current. The firmware doesn't record its
+Pimoroni release number, so the verdict compares dates.
+
+Needs mpremote (in requirements-dev.txt; .venv/bin/python finds the
+pinned copy). Standard library otherwise.
+
+(Adapted from freemansoft/MoodBadger2350.)
+"""
+
+import argparse
+import json
+import subprocess
+import sys
+import time
+
+import badgeware_release as rel
+from install import APP
+
+# Runs on the badge. badge.model is set from badgeware.badge.MODEL, so
+# read that (or the menu's own badge object, if it's still around). Only
+# if Badgeware failed to load, fall back to the os.uname() slice it uses.
+# The user filesystem is mounted read-only at /system; /state is on the
+# separate LittleFS root.
+DEVICE_SNIPPET = r"""
+import builtins, json, os, sys
+u = os.uname()
+info = {"machine": u.machine, "release": u.release, "version": u.version}
+try:
+    import badgeware.badge
+except Exception:
+    pass
+b = getattr(builtins, "badge", None)
+mod = None
+for key in sys.modules:
+    if key == "badgeware.badge" or key.endswith("badgeware/badge"):
+        mod = sys.modules[key]
+if b is not None and hasattr(b, "model"):
+    info["model"], info["model_source"] = b.model, "badge.model"
+elif mod is not None and hasattr(mod, "MODEL"):
+    info["model"], info["model_source"] = mod.MODEL, "badgeware.badge.MODEL"
+else:
+    info["model"], info["model_source"] = u.machine[9:-17].lower(), "os.uname().machine"
+try:
+    info["apps"] = sorted(os.listdir("/system/apps"))
+except OSError:
+    info["apps"] = None
+try:
+    info["state"] = open("/state/APP.json").read()
+except OSError:
+    info["state"] = None
+try:
+    s = os.statvfs("/system")
+    info["free_kb"] = s[0] * s[3] // 1024
+except OSError:
+    info["free_kb"] = None
+print("BADGE_INFO " + json.dumps(info))
+""".replace("APP", APP)
+
+
+def run(cmd, timeout=30):
+    return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+
+
+def need_mpremote():
+    """The mpremote command (see badgeware_release.mpremote), or exit."""
+    cmd = rel.mpremote()
+    if cmd is None:
+        sys.exit("mpremote not found. Run this with .venv/bin/python (see README.md,\n"
+                 "Development), or install it with: pip install mpremote")
+    return cmd
+
+
+def list_badges():
+    return rel.badge_ports(run([*need_mpremote(), "devs"]).stdout)
+
+
+def choose_port(port, wait=0):
+    """The badge's serial port: ``port`` if given, else the only badge
+    that `mpremote devs` lists, so mpremote can't pick another board.
+    With ``wait``, keep looking that many seconds (after a RESET or a
+    flash the badge takes a few seconds to come back on USB)."""
+    if port:
+        return port
+    badges = list_badges()
+    if not badges and wait:
+        print("Waiting up to {} s for the badge on USB (normal mode) ...".format(wait),
+              flush=True)
+        badges = rel.wait_for(list_badges, wait, interval=2)
+        if badges:
+            time.sleep(2)  # let MicroPython finish starting before mpremote connects
+    if not badges:
+        sys.exit(
+            "No badge found on USB. It must be plugged in with a data cable,\n"
+            "awake, and in normal mode (menu or an app showing), not disk mode.\n"
+            "`mpremote devs` lists what's connected.")
+    if len(badges) > 1:
+        listed = "\n".join("  {}  ({})".format(p, m) for p, m in badges)
+        sys.exit("More than one badge connected; pick one with --port:\n" + listed)
+    return badges[0][0]
+
+
+def parse_info(output):
+    for line in output.splitlines():
+        if line.startswith("BADGE_INFO "):
+            return json.loads(line[len("BADGE_INFO "):])
+    raise ValueError("no BADGE_INFO line in:\n" + output)
+
+
+def mpremote_command(port, restart=True, mpremote=("mpremote",)):
+    """The mpremote call that reads the badge. mpremote stops the running
+    program to do it, which leaves the screen frozen on its last picture,
+    so by default it ends with machine.reset(). A Badger then reopens the
+    app it was showing; a Tufty opens the menu."""
+    cmd = [*mpremote, "connect", port, "exec", DEVICE_SNIPPET]
+    return cmd + ["reset"] if restart else cmd
+
+
+def read_badge(port, restart=True):
+    result = run(mpremote_command(port, restart, need_mpremote()))
+    if result.returncode != 0:
+        sys.exit("mpremote failed:\n" + (result.stderr or result.stdout))
+    return parse_info(result.stdout)
+
+
+def latest_for(model):
+    """(release dict, None) or (None, reason)."""
+    if model not in rel.MODELS:
+        return None, "not a supported badge"
+    try:
+        return rel.fetch_release(model), None
+    except (OSError, ValueError) as e:  # offline, rate-limited ...
+        return None, "couldn't reach GitHub ({})".format(e)
+
+
+def summarise(port, info, release):
+    """Add derived fields (build date, verdict, app installed) to ``info``."""
+    info["port"] = port
+    info["build_date"] = rel.build_date(info["version"])
+    apps = info.get("apps")
+    info["app_installed"] = None if apps is None else APP in apps
+    if release:
+        info["latest_tag"] = release["tag_name"]
+        info["latest_published"] = release.get("published_at", "")[:10]
+        info["firmware_status"] = rel.firmware_status(
+            info["build_date"], info["latest_published"])
+    return info
+
+
+def report(info, why_not):
+    model = info["model"]
+    built = info["build_date"]
+    lines = [
+        ("Port", info["port"]),
+        ("Model", "{}  (from {})".format(model, info["model_source"])),
+        ("Board", info["machine"]),
+        ("MicroPython", "{}  ({})".format(info["release"], info["version"])),
+        ("Dice Roller", {True: "installed", False: "not installed", None: "unknown"}[
+            info["app_installed"]]),
+        ("Saved dice", info.get("state") or "none"),
+        ("Free space", "{} KB".format(info["free_kb"]) if info.get("free_kb") is not None
+         else "unknown"),
+    ]
+    if "latest_tag" in info:
+        verdict = {
+            "current": "looks current (built {})".format(built),
+            "older": "OLDER: built {}, before the latest release".format(built),
+            "newer": "built {}, after the latest release (pre-release or custom?)".format(built),
+            "unknown": "can't tell (no build date in the version string)",
+        }[info["firmware_status"]]
+        lines.append(("Latest", "{} {}, published {}".format(
+            rel.repo_for(model), info["latest_tag"], info["latest_published"])))
+        lines.append(("Firmware", verdict))
+    else:
+        lines.append(("Latest", why_not))
+
+    width = max(len(k) for k, _ in lines) + 1
+    for key, value in lines:
+        print("{} {}".format((key + ":").ljust(width), value))
+    if model not in rel.MODELS:
+        print("\nThese tools support {} only.".format(" and ".join(rel.MODELS)))
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--port", help="the badge's serial port (default: find it)")
+    parser.add_argument("--json", action="store_true", help="print the details as JSON")
+    parser.add_argument("--offline", action="store_true",
+                        help="don't look up the latest release")
+    parser.add_argument("--wait", type=int, default=0, metavar="SECONDS",
+                        help="wait this long for the badge to appear (default: don't wait)")
+    parser.add_argument("--no-restart", action="store_true",
+                        help="leave the badge stopped at the REPL instead of restarting it")
+    args = parser.parse_args()
+
+    need_mpremote()
+    port = choose_port(args.port, args.wait)
+    info = read_badge(port, restart=not args.no_restart)
+    release, why_not = ((None, "not checked (--offline)") if args.offline
+                        else latest_for(info["model"]))
+    info = summarise(port, info, release)
+    if args.json:
+        print(json.dumps(info, indent=2))
+    else:
+        report(info, why_not)
+
+
+if __name__ == "__main__":
+    main()

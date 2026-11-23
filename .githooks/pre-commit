@@ -1,38 +1,105 @@
 #!/bin/sh
-# Block a commit if any staged Markdown file isn't prettier-formatted.
+# Check what is about to be committed (the *staged* content, not the
+# working copy):
+#
+#   - every staged .py file passes ruff check (ruff.toml applies);
+#   - every staged .py file under apps/dice_roller compiles with
+#     mpy-cross (MicroPython's syntax, which CPython doesn't check);
+#   - every staged .md file is prettier-formatted.
 #
 # Enable once per clone:   git config core.hooksPath .githooks
-# Fix the files:           npx --yes prettier@3.9.10 --write <files>
+# Fix Markdown:            npx --yes prettier@$(cat .prettier-version) --write <files>
 #
-# It checks the *staged* content, not the working copy, so a file that
-# is formatted on disk but staged unformatted is still caught. The
-# prettier version is pinned so everyone formats the same way; keep it
-# in step with the README and .github/workflows/ci.yml. (Copied from
-# freemansoft/claude-buddy-badgeware.)
+# ruff and mpy-cross come from .venv (requirements-dev.txt), or PATH.
+# The prettier version is in .prettier-version, which CI reads too.
+# (Adapted from freemansoft/claude-buddy-badgeware.)
 
-PRETTIER="prettier@3.9.10"
+APP_DIR="apps/dice_roller"
 
 root=$(git rev-parse --show-toplevel) || exit 1
-files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.md')
-[ -z "$files" ] && exit 0
-
-if ! command -v npx >/dev/null 2>&1; then
-  echo "pre-commit: npx not found; can't check Markdown formatting." >&2
-  echo "Install Node.js, or skip this check once with: git commit --no-verify" >&2
-  exit 1
-fi
+cd "$root" || exit 1
 
 tmp=$(mktemp -d) || exit 1
 trap 'rm -rf "$tmp"' EXIT INT TERM
 
-# Copy the staged versions out, then check them with the repo's config.
-git diff --cached --name-only -z --diff-filter=ACMR -- '*.md' |
-  git checkout-index -z --stdin --prefix="$tmp/"
-
-if ! (cd "$tmp" && npx --yes "$PRETTIER" --config "$root/.prettierrc.json" --check .); then
-  echo "" >&2
-  echo "pre-commit: staged Markdown isn't prettier-formatted. Fix with:" >&2
-  echo "  npx --yes $PRETTIER --write $(echo "$files" | tr '\n' ' ')" >&2
-  echo "then git add the files again." >&2
+missing_tool() {
+  echo "pre-commit: $1 not found; can't check $2." >&2
+  echo "$3, or skip these checks once with: git commit --no-verify" >&2
   exit 1
+}
+
+failed=0
+
+# --- Python: ruff and mpy-cross ------------------------------------------
+py_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.py')
+if [ -n "$py_files" ]; then
+  if [ -x "$root/.venv/bin/ruff" ]; then
+    ruff="$root/.venv/bin/ruff"
+  elif command -v ruff >/dev/null 2>&1; then
+    ruff=ruff
+  else
+    missing_tool ruff "Python" "Set up .venv as the README says (Development)"
+  fi
+
+  app_files=$(echo "$py_files" | grep "^$APP_DIR/" || true)
+  if [ -n "$app_files" ]; then
+    if [ -x "$root/.venv/bin/python" ] && "$root/.venv/bin/python" -c "import mpy_cross" 2>/dev/null; then
+      mpy_python="$root/.venv/bin/python"
+    elif command -v python3 >/dev/null 2>&1 && python3 -c "import mpy_cross" 2>/dev/null; then
+      mpy_python=python3
+    else
+      missing_tool mpy-cross "MicroPython syntax" "Set up .venv as the README says (Development)"
+    fi
+  fi
+
+  # File names in this repo have no spaces or newlines, so a plain loop
+  # over the list is safe.
+  for f in $py_files; do
+    if ! git show ":$f" | "$ruff" check --quiet --force-exclude --stdin-filename "$f" -; then
+      failed=1
+    fi
+  done
+
+  for f in $app_files; do
+    git show ":$f" >"$tmp/staged.py"
+    if ! "$mpy_python" -m mpy_cross -o /dev/null "$tmp/staged.py" 2>"$tmp/mpy.err"; then
+      echo "$f: MicroPython syntax error (mpy-cross):" >&2
+      sed "s|$tmp/staged.py|$f|g" "$tmp/mpy.err" >&2
+      failed=1
+    fi
+  done
+
+  if [ "$failed" -ne 0 ]; then
+    echo "" >&2
+    echo "pre-commit: staged Python fails the checks above. Fix it (ruff check --fix" >&2
+    echo "can fix some lint), then git add the files again." >&2
+  fi
 fi
+
+# --- Markdown: prettier ---------------------------------------------------
+md_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.md')
+if [ -n "$md_files" ]; then
+  if [ ! -f "$root/.prettier-version" ]; then
+    echo "pre-commit: .prettier-version is missing; can't pick the prettier version." >&2
+    exit 1
+  fi
+  prettier="prettier@$(cat "$root/.prettier-version")"
+  if ! command -v npx >/dev/null 2>&1; then
+    missing_tool npx "Markdown formatting" "Install Node.js"
+  fi
+
+  # Copy the staged versions out, then check them with the repo's config.
+  mkdir "$tmp/md"
+  git diff --cached --name-only -z --diff-filter=ACMR -- '*.md' |
+    git checkout-index -z --stdin --prefix="$tmp/md/"
+
+  if ! (cd "$tmp/md" && npx --yes "$prettier" --config "$root/.prettierrc.json" --check .); then
+    echo "" >&2
+    echo "pre-commit: staged Markdown isn't prettier-formatted. Fix with:" >&2
+    echo "  npx --yes $prettier --write $(echo "$md_files" | tr '\n' ' ')" >&2
+    echo "then git add the files again." >&2
+    failed=1
+  fi
+fi
+
+exit "$failed"

@@ -8,3 +8,7 @@ extend = "vendor/tufty2350/ci/ruff.toml"
 
 # The firmware itself is Pimoroni's to lint; sim/dist is a staged copy.
 extend-exclude = ["vendor", "sim/dist", "sim/wasm"]
+
+# ruff check only; ruff format is not used. Pimoroni's firmware CI only
+# runs ruff check (vendor/*/ci/python.sh), and the formatter would
+# rewrite most files. Don't run ruff format.
