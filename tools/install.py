@@ -53,6 +53,26 @@ def _ignore_missing(_func, _path, exc_info):
         raise exc_info[1]
 
 
+def remove_apple_double(target):
+    """Delete the "._" files macOS writes next to each copied file.
+
+    The badge's drive is FAT, which can't hold extended attributes, so
+    macOS stores them (com.apple.provenance at least, which it stamps on
+    every new file, so copying without metadata doesn't avoid it) in a
+    "._<name>" companion file. The badge never uses them. Returns how
+    many were removed; on other OSes there are none.
+    """
+    removed = 0
+    for path in sorted(Path(target).rglob("._*")):
+        if path.is_file():
+            try:
+                path.unlink()
+            except FileNotFoundError:
+                continue
+            removed += 1
+    return removed
+
+
 def _run(cmd, run):
     """Run ``cmd``; return its stdout, or None (printing why) on failure."""
     try:
@@ -141,6 +161,7 @@ def main():
     if target.exists():
         shutil.rmtree(target, onerror=_ignore_missing)
     shutil.copytree(SRC, target, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", "._*"))
+    remove_apple_double(target)
     print("Installed to", target)
     if args.no_eject or os.name == "nt":
         print("Eject the drive before pressing RESET or unplugging, or the copied")

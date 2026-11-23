@@ -81,3 +81,39 @@ def test_eject_reports_failure_so_the_user_ejects(platform, results):
     run, calls = fake_run(results)
     assert install.eject(Path("/x"), run=run, platform=platform) is False
     assert not any("power-off" in cmd for cmd in calls)  # never powered off a drive still mounted
+
+
+def test_remove_apple_double_removes_only_dot_underscore_files(tmp_path):
+    (tmp_path / "game").mkdir()
+    for name in ("__init__.py", "._init__.py", "icon.png", "._icon.png", "game/dice.py", "game/._dice.py"):
+        (tmp_path / name).write_text("x")
+    assert install.remove_apple_double(tmp_path) == 3
+    left = sorted(p.relative_to(tmp_path).as_posix() for p in tmp_path.rglob("*") if p.is_file())
+    assert left == ["__init__.py", "game/dice.py", "icon.png"]
+
+
+def test_remove_apple_double_with_nothing_to_remove(tmp_path):
+    (tmp_path / "__init__.py").write_text("x")
+    assert install.remove_apple_double(tmp_path) == 0
+
+
+def test_install_removes_the_apple_double_files_macos_writes(tmp_path, monkeypatch):
+    # macOS writes a "._" companion beside each file it copies to the FAT
+    # drive, on the drive itself, so the copy's ignore list can't stop it
+    copytree = install.shutil.copytree
+
+    def copy_like_macos(src, dst, *args, **kwargs):  # also called for each subfolder
+        copytree(src, dst, *args, **kwargs)
+        for path in list(Path(dst).iterdir()):
+            if not path.name.startswith("._"):
+                (path.parent / ("._" + path.name)).write_text("xattr")
+        return dst
+
+    monkeypatch.setattr(install.shutil, "copytree", copy_like_macos)
+    (tmp_path / "apps").mkdir()
+    (tmp_path / "main.py").write_text("")
+    monkeypatch.setattr(sys, "argv", ["install.py", "--dest", str(tmp_path), "--no-eject"])
+    install.main()
+    dest = tmp_path / "apps" / "dice_roller"
+    assert (dest / "__init__.py").exists()
+    assert not list(dest.rglob("._*"))
