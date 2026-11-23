@@ -1,24 +1,40 @@
 #!/usr/bin/env python3
 """Copy the Dice Roller app onto a Badgeware badge in USB disk mode.
 
-Ported from claude-buddy-badgeware's tools/install.py.
-
 1. Double-tap RESET on the back of the badge. It mounts as a USB drive
-   (TUFTY on a Tufty 2350).
+   (TUFTY on a Tufty 2350, BADGER on a Badger 2350).
 2. Run:  python3 tools/install.py            (finds the drive)
      or  python3 tools/install.py --dest /Volumes/TUFTY
      or  python tools\\install.py --dest E:\\
 3. On macOS and Linux the script ejects the drive itself and the badge
    restarts into the menu. On Windows, eject it from the taskbar.
 
-Never press RESET or unplug the badge before the drive is ejected: the
-computer writes to the drive lazily, and files cut short on the badge
-show up later as a SyntaxError when the app starts.
+Only apps/dice_roller is replaced; other apps and the saved dice (in
+/state, on the badge's internal storage, not on this drive) stay. The
+install is hardened:
+
+- The new copy is built in a folder at the drive's root (.dice_roller.new,
+  outside apps/, so the menu never lists a half-copied app), checked byte
+  for byte against apps/dice_roller, then swapped in with renames.
+- If the copy is interrupted (a RESET, a pulled cable, a full drive) or
+  the check fails, the old app stays in place and working: run this
+  again. Leftovers of an interrupted run are cleared next time.
+- The "._" files macOS writes beside every file on the drive are removed.
+
+The check reads back through the computer's cache, so it can't tell
+whether every write has reached the badge. Never press RESET or unplug
+the badge before the drive is ejected: the computer writes to the drive
+lazily, and files cut short on the badge show up later as a SyntaxError
+when the app starts.
+
+Adapted from claude-buddy-badgeware's tools/install.py (the "._"
+cleanup too) and MoodBadger2350's (the staged, checked copy).
 
 Standard library only; works on macOS, Windows and Linux.
 """
 
 import argparse
+import filecmp
 import os
 import shutil
 import string
@@ -29,6 +45,7 @@ from pathlib import Path
 APP = "dice_roller"
 LABELS = ("BADGER", "TUFTY", "BADGER2350", "TUFTY2350")
 SRC = Path(__file__).resolve().parent.parent / "apps" / APP
+JUNK = shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", "._*")
 
 
 def _looks_like_badge(root):
@@ -45,16 +62,24 @@ def _windows_label(drive):
     return buf.value if ok else ""
 
 
-def _ignore_missing(_func, _path, exc_info):
+def _ignore_missing(_func, _path, exc):
     """rmtree error handler. On macOS the badge's FAT drive holds "._"
     companion files that vanish along with their main file, so
     deleting one that's already gone isn't an error."""
-    if not issubclass(exc_info[0], FileNotFoundError):
-        raise exc_info[1]
+    if not isinstance(exc, FileNotFoundError):
+        raise exc
+
+
+def _remove_tree(path):
+    if sys.version_info >= (3, 12):
+        shutil.rmtree(path, onexc=_ignore_missing)  # onerror is deprecated from 3.12
+    else:
+        shutil.rmtree(path, onerror=lambda func, p, info: _ignore_missing(func, p, info[1]))
 
 
 def remove_apple_double(target):
-    """Delete the "._" files macOS writes next to each copied file.
+    """Delete the "._" files macOS writes next to each copied file, and
+    the one beside the target folder itself.
 
     The badge's drive is FAT, which can't hold extended attributes, so
     macOS stores them (com.apple.provenance at least, which it stamps on
@@ -62,8 +87,10 @@ def remove_apple_double(target):
     "._<name>" companion file. The badge never uses them. Returns how
     many were removed; on other OSes there are none.
     """
+    target = Path(target)
     removed = 0
-    for path in sorted(Path(target).rglob("._*")):
+    partner = target.parent / ("._" + target.name)
+    for path in [partner, *sorted(target.rglob("._*"))]:
         if path.is_file():
             try:
                 path.unlink()
@@ -71,6 +98,67 @@ def remove_apple_double(target):
                 continue
             removed += 1
     return removed
+
+
+def _app_files(folder):
+    """Relative paths of the files the install copies (JUNK left out)."""
+    files = []
+    for path in sorted(Path(folder).rglob("*")):
+        parts = path.relative_to(folder).parts
+        if path.is_file() and not any(
+            part == "__pycache__" or part.startswith(".") or part.endswith(".pyc") for part in parts
+        ):
+            files.append(path.relative_to(folder).as_posix())
+    return files
+
+
+def verify_copy(src, copy):
+    """Relative paths of app files missing from ``copy`` or differing from
+    ``src``, byte for byte. (Reads go through the computer's cache, so
+    this catches a bad or short copy, not data still waiting to be
+    written: ejecting is what makes sure of that.)"""
+    return [
+        name for name in _app_files(src)
+        if not (Path(copy) / name).is_file() or not filecmp.cmp(Path(src) / name, Path(copy) / name, shallow=False)
+    ]
+
+
+def install_app(src, root):
+    """Replace apps/<APP> on the drive at ``root`` with ``src``; return the
+    installed folder. Raises OSError, with the old app still in place.
+
+    The new copy is built and checked in a folder at the drive's root,
+    outside apps/ (so the menu never lists a half-copied app), then
+    swapped in with renames. An interrupted copy (a RESET, a pulled
+    cable, a full drive) or a failed check leaves the old app working;
+    leftovers are cleared on the next run. Adapted from MoodBadger2350's
+    tools/install.py.
+    """
+    target = root / "apps" / APP
+    staging = root / f".{APP}.new"
+    old = root / f".{APP}.old"
+    for leftover in (staging, old):
+        if leftover.exists():
+            _remove_tree(leftover)
+
+    shutil.copytree(src, staging, ignore=JUNK, copy_function=shutil.copyfile)
+    remove_apple_double(staging)
+    bad = verify_copy(src, staging)
+    if bad:
+        raise OSError("the copy didn't match for " + ", ".join(bad))
+
+    if target.exists():
+        target.rename(old)
+    try:
+        staging.rename(target)
+    except OSError:
+        if old.exists():
+            old.rename(target)  # put the old app back
+        raise
+    if old.exists():
+        _remove_tree(old)
+    remove_apple_double(target)
+    return target
 
 
 def _run(cmd, run):
@@ -157,12 +245,13 @@ def main():
             sys.exit("Several badge drives found ({}); pass --dest.".format(", ".join(map(str, found))))
         root = found[0]
 
-    target = root / "apps" / APP
-    if target.exists():
-        shutil.rmtree(target, onerror=_ignore_missing)
-    shutil.copytree(SRC, target, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".DS_Store", "._*"))
-    remove_apple_double(target)
-    print("Installed to", target)
+    print(f"Copying to {root}. Don't press any buttons until it has ejected.", flush=True)
+    try:
+        target = install_app(SRC, root)
+    except OSError as e:
+        sys.exit(f"The install failed ({e}).\nThe old Dice Roller, if there was one, is still in place. "
+                 "If the drive is still mounted, run this again.")
+    print(f"Installed and checked {len(_app_files(SRC))} files in {target}")
     if args.no_eject or os.name == "nt":
         print("Eject the drive before pressing RESET or unplugging, or the copied")
         print("files may be cut short. The badge then restarts into the menu.")

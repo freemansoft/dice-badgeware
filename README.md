@@ -89,8 +89,16 @@ whatever screen you were looking at before.
    ejects it. (Or copy the folder by hand, then eject.)
 3. The badge restarts into the menu. Choose **Dice Roller**.
 
-Always eject before pressing RESET or unplugging, or files on the badge
-can be cut short.
+The installer is hardened. It builds the new copy in a hidden folder on
+the drive, checks every file byte for byte, and only then swaps it in, so
+an interrupted or bad copy (a RESET, a pulled cable, a full drive) leaves
+the old app in place and working: just run it again. It also removes the
+`._` files macOS writes beside every file on the badge. Only
+`apps/dice_roller` is replaced; other apps and your saved dice stay.
+
+Always eject before pressing RESET or unplugging: the check can't tell
+whether the computer has finished writing to the badge, and files cut
+short show up as a SyntaxError when the app starts.
 
 ### Badger notes
 
@@ -298,6 +306,7 @@ New Superpowers releases arrive without any change to this repository.
   [badgeware-wasm](https://github.com/pimoroni/badgeware-wasm) build;
   `vendor/tufty2350` keeps its own licence.
 - `tools/install.py` and `tools/make_icon.py` are adapted from
-  claude-buddy-badgeware; the simulator loader follows the approach of
+  claude-buddy-badgeware, and the installer's staged, checked copy from
+  MoodBadger2350's; the simulator loader follows the approach of
   MoodBadger2350's `sim/`.
 - Button layout and menu spacing follow Pimoroni's Badgeware launcher.
