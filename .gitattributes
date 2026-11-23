@@ -1,0 +1,4 @@
+# Pimoroni's badgeware-wasm builds (tools/update_sim.py): not our code, so
+# GitHub's language stats skip them. The vendor/ submodules are already
+# left out (git stores only their commit).
+sim/wasm/** linguist-vendored
