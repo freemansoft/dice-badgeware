@@ -5,6 +5,9 @@ and Badger 2350 badges (Badgeware firmware). Roll two to six dice, each
 with 4 to 20 faces, lock the ones you want to keep, and reroll the rest,
 Yahtzee-style.
 
+Video: [Dice roller app for Pimoroni Tufty 2350 and Badger 2350](https://youtu.be/B9ww5fzRGVs)
+on YouTube.
+
 The game is the same on every badge; only the drawing differs, one file
 per badge, so the Blinky 2350 can be added later (see
 [Adding a badge](#adding-a-badge)).
