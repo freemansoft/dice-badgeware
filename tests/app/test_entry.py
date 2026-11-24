@@ -24,10 +24,6 @@ class FakeBadge:
         self.ticks = 0
         self.down = set()
         self.went_down = set()
-        self.woken = False
-
-    def woken_by_button(self):
-        return self.woken
 
     def pressed(self):
         return list(self.went_down)
@@ -83,9 +79,8 @@ class FakeBadger(FakeDisplay):
 def entry(monkeypatch):
     """Load the entry file for a model; returns (module, badge, state, frame)."""
 
-    def load(model, saved=None, woken=False):
+    def load(model, saved=None):
         badge = FakeBadge(model)
-        badge.woken = woken
         state = FakeState()
         state.saved.update(saved or {})
         loop = {}
@@ -144,15 +139,9 @@ def test_roll_saves_and_relaunch_restores(entry):
     assert again.app.dice.dice[0].locked
 
 
-def test_waking_press_only_wakes(entry):
-    # the badge may have slept on another screen; a press must not act on
-    # a screen the user wasn't looking at
-    module, _, state, frame = entry("tufty", woken=True)
-    frame(DOWN)
-    assert state.saved == {} and module.app.rolled == []
-
-
 def test_menu_press_is_ignored_at_launch(entry):
+    # also how a press that wakes a sleeping badge (which restarts the
+    # app) is kept from acting on a screen the user wasn't looking at
     module, _, _, frame = entry("tufty")
     frame(B)
     assert module.app.screen == "roll_screen"

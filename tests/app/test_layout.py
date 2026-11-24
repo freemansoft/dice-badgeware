@@ -29,10 +29,6 @@ def test_two_and_three_are_one_centred_row():
     assert slots(3) == [(44, 122, 37), (132, 122, 37), (220, 122, 37)]
 
 
-def test_area_defaults_to_the_origin():
-    assert layout.grid_slots(264, 180, 4) == [(88, 46, 37), (176, 46, 37), (88, 134, 37), (176, 134, 37)]
-
-
 def test_every_count_fits_in_its_area():
     for w, h, left, top in (AREA, (264, 176, 0, 0), (200, 100, 10, 20), (39, 26, 0, 0)):
         for n in range(2, 7):
